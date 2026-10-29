@@ -11,5 +11,11 @@
 - 확실하지 않은 부분은 단정하지 말고 "검증 필요"로 표시할 것.
 
 # 실행
-1. Supabase 테스트 프로젝트 SQL Editor에서 `supabase/migrations/*.sql` 순서대로 실행 → `supabase/tests/rls_check.sql` 실행 ('ALL RLS CHECKS PASSED' 확인)
-2. `cd web && cp .env.example .env` 후 URL/anon 키 입력 → `npm i && npm run dev`
+1. Supabase SQL Editor에서 `supabase/migrations/*.sql`을 이름 순서대로 실행 → `supabase/tests/rls_check.sql` 실행 (마지막 결과가 'ALL RLS CHECKS PASSED')
+2. `cd web && cp .env.example .env` 후 값 입력 → `npm i && npm run dev` / 파서 테스트: `npm test`
+3. 푸시(찌르기/일정 알림)
+   - `npx web-push generate-vapid-keys` → Public Key는 `web/.env`와 Vercel 환경변수 `VITE_VAPID_PUBLIC_KEY`에
+   - `npx supabase login` → `npx supabase link --project-ref mnqzvqpmmpvvxrhbwvyc`
+   - `npx supabase secrets set VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=... VAPID_SUBJECT=mailto:<이메일> CRON_SECRET=<임의 긴 문자열>`
+   - `npx supabase functions deploy notify --no-verify-jwt --use-api`
+   - Database > Extensions에서 pg_cron, pg_net 켜고 `supabase/cron.sql`의 <CRON_SECRET>을 바꿔 SQL Editor에서 실행

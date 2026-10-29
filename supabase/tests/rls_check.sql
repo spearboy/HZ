@@ -116,6 +116,76 @@ do $$ begin
   end if;
 end $$;
 
+-- ===== 20261029000001_features.sql 범위 =====
+
+-- A: 찌르기 하루 1회, 사진/구독 기록
+select public.send_poke();
+do $$ begin
+  perform public.send_poke();
+  raise exception 'FAIL: 같은 날 두 번 찌르기 성공';
+exception when unique_violation then null; end $$;
+
+insert into public.photos (couple_id, uploaded_by, photo_date, storage_path, thumb_path)
+  values (public.my_couple_id(), auth.uid(), current_date, public.my_couple_id() || '/x.jpg', public.my_couple_id() || '/t.jpg');
+insert into public.push_subscriptions (endpoint, user_id, p256dh, auth) values ('https://push.test/a', auth.uid(), 'k', 'a');
+
+do $$ begin
+  insert into public.photos (couple_id, uploaded_by, photo_date, storage_path, thumb_path)
+    values (public.my_couple_id(), '00000000-0000-0000-0000-00000000000b', current_date, public.my_couple_id() || '/y.jpg', public.my_couple_id() || '/y.jpg');
+  raise exception 'FAIL: A가 B 명의로 사진 insert 성공';
+exception when insufficient_privilege then null; end $$;
+
+do $$ begin
+  insert into public.photos (couple_id, uploaded_by, photo_date, storage_path, thumb_path)
+    values (public.my_couple_id(), auth.uid(), current_date, 'other-couple/z.jpg', 'other-couple/z.jpg');
+  raise exception 'FAIL: 남의 경로로 사진 insert 성공';
+exception when insufficient_privilege then null; end $$;
+
+do $$ begin
+  perform public.due_reminders();
+  raise exception 'FAIL: 사용자가 due_reminders 실행';
+exception when insufficient_privilege then null; end $$;
+
+do $$ begin
+  if (select count(*) from public.reminder_log) <> 0 then raise exception 'FAIL: reminder_log가 보임'; end if;
+end $$;
+
+-- B: 상대 사진은 보이고, 상대 구독/사진 삭제는 안 된다
+reset role;
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000b"}';
+do $$ begin
+  if (select count(*) from public.photos) <> 1 then raise exception 'FAIL: B가 커플 사진을 못 봄'; end if;
+  if (select count(*) from public.pokes) <> 1 then raise exception 'FAIL: B가 받은 찌르기를 못 봄'; end if;
+  if (select count(*) from public.push_subscriptions) <> 0 then raise exception 'FAIL: B가 A의 구독을 봄'; end if;
+  delete from public.photos;
+  if (select count(*) from public.photos) <> 1 then raise exception 'FAIL: B가 A의 사진을 삭제함'; end if;
+end $$;
+
+-- C: 아무것도 안 보인다
+reset role;
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000c"}';
+do $$ begin
+  if (select count(*) from public.photos) <> 0 then raise exception 'FAIL: C가 사진을 봄'; end if;
+  if (select count(*) from public.pokes) <> 0 then raise exception 'FAIL: C가 찌르기를 봄'; end if;
+  if (select count(*) from public.push_subscriptions) <> 0 then raise exception 'FAIL: C가 구독을 봄'; end if;
+end $$;
+
+-- 알림: 오늘/내일/7일 뒤 일정은 두 명에게 각 1번만, 2일 뒤 일정은 대상 아님
+reset role;
+insert into public.events (couple_id, created_by, title, start_at)
+select current_setting('test.couple')::uuid, '00000000-0000-0000-0000-00000000000a', t, now() + d * interval '1 day'
+from (values ('r0', 0), ('r1', 1), ('r2', 2), ('r7', 7)) v(t, d);
+delete from public.reminder_log;
+do $$ begin
+  -- 테스트 일정 3개(r0, r1, r7) x 2명 = 6. 'B가 수정' 일정(오늘)도 대상이라 +2
+  if (select count(*) from public.due_reminders() where title in ('r0', 'r1', 'r2', 'r7', 'B가 수정')) <> 8 then
+    raise exception 'FAIL: 알림 대상 수가 틀림';
+  end if;
+  if (select count(*) from public.due_reminders()) <> 0 then raise exception 'FAIL: 알림 중복 발송'; end if;
+end $$;
+
 -- SQL Editor는 notice를 안 보여 주고 마지막 결과만 보여 주므로 결과 행으로 남긴다
 select 'ALL RLS CHECKS PASSED' as result;
 

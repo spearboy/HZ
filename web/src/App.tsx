@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
+import { Alert, Box, Button, Card, CardContent, CircularProgress, Divider, Stack, TextField, Typography } from '@mui/material'
+import FavoriteRounded from '@mui/icons-material/FavoriteRounded'
 import { auth, koError, supabase } from './supabase'
-import Calendar from './Calendar'
+import Home from './Home'
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
@@ -12,9 +14,32 @@ export default function App() {
     return () => data.subscription.unsubscribe()
   }, [])
 
-  if (session === undefined) return null
+  if (session === undefined) return <Loading />
   if (!session) return <Login />
   return <Paired userId={session.user.id} />
+}
+
+const Loading = () => (
+  <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center' }}><CircularProgress /></Box>
+)
+
+// 로그인/연결 화면 공통 틀: 가운데 카드 + 로고
+function Centered({ title, sub, children }: { title: string; sub: string; children: React.ReactNode }) {
+  return (
+    <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', p: 2,
+      background: (t) => `radial-gradient(circle at 20% 0%, ${t.vars!.palette.primary.main}33, transparent 60%)` }}>
+      <Stack spacing={3} sx={{ width: '100%', maxWidth: 400 }}>
+        <Stack sx={{ alignItems: 'center' }} spacing={1}>
+          <Box sx={{ width: 64, height: 64, borderRadius: '22px', bgcolor: 'primary.main', color: 'primary.contrastText', display: 'grid', placeItems: 'center', boxShadow: 4 }}>
+            <FavoriteRounded fontSize="large" />
+          </Box>
+          <Typography variant="h5">{title}</Typography>
+          <Typography color="text.secondary" sx={{ textAlign: 'center' }}>{sub}</Typography>
+        </Stack>
+        <Card><CardContent><Stack spacing={2}>{children}</Stack></CardContent></Card>
+      </Stack>
+    </Box>
+  )
 }
 
 function Login() {
@@ -30,22 +55,28 @@ function Login() {
   }
 
   return (
-    <main className="narrow">
-      <h1>우리 캘린더</h1>
-      <button className="kakao" onClick={() => auth.oauth('kakao')}>카카오로 로그인</button>
-      <p className="muted">처음 가입한 방식으로 계속 로그인하세요. 방식이 다르면 다른 계정이 됩니다.</p>
-      <form onSubmit={(e) => submit(e, 'in')}>
-        <input type="email" placeholder="이메일" required value={email} onChange={(e) => setEmail(e.target.value)} />
-        <input type="password" placeholder="비밀번호 (6자 이상)" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
-        <button type="submit">이메일로 로그인</button>
-        <button type="button" className="secondary" onClick={(e) => submit(e, 'up')}>이메일로 가입</button>
-      </form>
-      {msg && <p role="alert">{msg}</p>}
-    </main>
+    <Centered title="우리 캘린더" sub="둘만의 일정과 사진을 함께 모아요">
+      <Button size="large" onClick={() => auth.oauth('kakao')}
+        sx={{ bgcolor: '#fee500', color: '#191919', '&:hover': { bgcolor: '#f5dc00' } }}>
+        카카오로 시작하기
+      </Button>
+      <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
+        처음 가입한 방식으로 계속 로그인하세요. 방식이 다르면 다른 계정이 됩니다.
+      </Typography>
+      <Divider>또는 이메일</Divider>
+      <Stack component="form" spacing={1.5} onSubmit={(e) => submit(e, 'in')}>
+        <TextField type="email" label="이메일" required size="small" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <TextField type="password" label="비밀번호 (6자 이상)" required size="small" slotProps={{ htmlInput: { minLength: 6 } }}
+          value={password} onChange={(e) => setPassword(e.target.value)} />
+        <Button type="submit" variant="contained" size="large">로그인</Button>
+        <Button onClick={(e) => submit(e, 'up')}>이메일로 가입</Button>
+      </Stack>
+      {msg && <Alert severity="info">{msg}</Alert>}
+    </Centered>
   )
 }
 
-// 커플이 두 명 다 연결돼야 캘린더를 연다
+// 커플이 두 명 다 연결돼야 홈을 연다
 function Paired({ userId }: { userId: string }) {
   const [coupleId, setCoupleId] = useState<string | null | undefined>(undefined)
   const [code, setCode] = useState('')
@@ -73,33 +104,28 @@ function Paired({ userId }: { userId: string }) {
     else check()
   }
 
-  if (coupleId === undefined) return null
-  if (coupleId) return <Calendar coupleId={coupleId} userId={userId} />
+  if (coupleId === undefined) return <Loading />
+  if (coupleId) return <Home coupleId={coupleId} userId={userId} />
 
   return (
-    <main className="narrow">
-      <h1>상대와 연결하기</h1>
-      <section>
-        <h2>내가 코드를 만들기</h2>
-        {code ? (
-          <>
-            <p className="code">{code}</p>
-            <p className="muted">상대에게 이 코드를 보내세요. 24시간 동안 유효해요.</p>
-            <button onClick={check}>상대가 입력했어요</button>
-          </>
-        ) : (
-          <button onClick={createCode}>초대 코드 만들기</button>
-        )}
-      </section>
-      <section>
-        <h2>받은 코드 입력</h2>
-        <form onSubmit={accept}>
-          <input placeholder="8자리 코드" required value={input} onChange={(e) => setInput(e.target.value)} />
-          <button type="submit">연결</button>
-        </form>
-      </section>
-      {msg && <p role="alert">{msg}</p>}
-      <button className="secondary" onClick={auth.signOut}>로그아웃</button>
-    </main>
+    <Centered title="상대와 연결하기" sub="한 사람이 코드를 만들고, 다른 사람이 입력하면 연결돼요">
+      {code ? (
+        <>
+          <Typography variant="overline" color="text.secondary">내 초대 코드 (24시간 유효)</Typography>
+          <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '0.2em', textAlign: 'center' }}>{code}</Typography>
+          <Button onClick={() => navigator.clipboard?.writeText(code)}>코드 복사</Button>
+          <Button variant="contained" onClick={check}>상대가 입력했어요</Button>
+        </>
+      ) : (
+        <Button variant="contained" size="large" onClick={createCode}>초대 코드 만들기</Button>
+      )}
+      <Divider>받은 코드가 있나요?</Divider>
+      <Stack component="form" direction="row" spacing={1} onSubmit={accept}>
+        <TextField label="8자리 코드" size="small" required value={input} onChange={(e) => setInput(e.target.value)} />
+        <Button type="submit" variant="outlined">연결</Button>
+      </Stack>
+      {msg && <Alert severity="error">{msg}</Alert>}
+      <Button color="inherit" onClick={auth.signOut}>로그아웃</Button>
+    </Centered>
   )
 }

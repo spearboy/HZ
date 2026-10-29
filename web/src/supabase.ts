@@ -22,5 +22,8 @@ const messages: Record<string, string> = {
   'couple already full': '이미 두 사람이 연결된 캘린더예요.',
   'Invalid login credentials': '이메일 또는 비밀번호가 틀렸어요.',
   'User already registered': '이미 가입된 이메일이에요.',
+  'no partner yet': '아직 상대가 연결되지 않았어요.',
+  'Failed to send a request to the Edge Function': '서버 함수(notify)에 연결하지 못했어요. 배포 상태를 확인하세요.',
+  'The resource already exists': '같은 사진이 이미 있어요.',
 }
 export const koError = (e: { message: string }) => messages[e.message] ?? e.message
