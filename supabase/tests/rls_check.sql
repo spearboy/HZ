@@ -57,6 +57,17 @@ do $$ begin
   end if;
 end $$;
 
+-- 사귄 날: B는 자기 커플 날짜를 바꿀 수 있지만 id 같은 다른 칸은 못 바꾼다
+update public.couples set started_on = '2024-05-01';
+do $$ begin
+  if (select started_on from public.couples) is distinct from '2024-05-01' then raise exception 'FAIL: 사귄 날 저장 안 됨'; end if;
+  begin
+    update public.couples set created_at = now() - interval '1 year';
+    raise exception 'FAIL: couples 다른 칸이 바뀜';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+
 -- 색상: B는 A의 색을 못 바꾸고, 형식이 틀린 색은 거부
 update public.profiles set color = '#000000' where id = '00000000-0000-0000-0000-00000000000a';
 do $$ begin
@@ -184,6 +195,15 @@ do $$ begin
   if (select count(*) from public.pokes) <> 0 then raise exception 'FAIL: C가 찌르기를 봄'; end if;
   if (select count(*) from public.push_subscriptions) <> 0 then raise exception 'FAIL: C가 구독을 봄'; end if;
 end $$;
+update public.couples set started_on = '2000-01-01';
+reset role;
+do $$ begin
+  if (select started_on from public.couples where id = current_setting('test.couple')::uuid) is distinct from '2024-05-01' then
+    raise exception 'FAIL: C가 남의 사귄 날을 바꿈';
+  end if;
+end $$;
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000c"}';
 
 -- 알림: 오늘/내일/7일 뒤 일정은 두 명에게 각 1번만, 2일 뒤 일정은 대상 아님
 reset role;

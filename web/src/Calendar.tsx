@@ -13,10 +13,9 @@ import { keyframes } from '@emotion/react'
 import { koError, supabase } from './supabase'
 import { PHOTO_COLUMNS, PhotoGrid, uploadPhotos, withThumbs, type Photo } from './Photos'
 import type { TabProps } from './Home'
-import { dayDiff, expand, ymd, type Event, type Occ } from './repeat'
+import { groupByDay, hm, ymd, type Event } from './repeat'
+import { eventsInRange } from './events'
 
-const COLUMNS = 'id,title,note,start_at,all_day,created_by,end_date,repeat_yearly,repeat_until_year'
-const hm = (d: Date) => d.toTimeString().slice(0, 5)
 const WEEK = ['일', '월', '화', '수', '목', '금', '토']
 const slideFromRight = keyframes`from { opacity: 0; transform: translateX(24px) } to { opacity: 1; transform: none }`
 const slideFromLeft = keyframes`from { opacity: 0; transform: translateX(-24px) } to { opacity: 1; transform: none }`
@@ -46,9 +45,7 @@ export default function Calendar({ coupleId, userId, version, notify, colorOf }:
 
   const load = useCallback(async () => {
     const [ev, ph] = await Promise.all([
-      // 이 화면에 걸치는 일정: 안에서 시작, 앞에서 시작해 이어지는 기간 일정, 매년 반복(전부 가져와 펼친다)
-      supabase.from('events').select(COLUMNS).lt('start_at', to)
-        .or(`start_at.gte."${from}",end_date.gte.${fromDay},repeat_yearly.is.true`).order('start_at'),
+      eventsInRange(from, to, fromDay),
       supabase.from('photos').select(PHOTO_COLUMNS).gte('photo_date', fromDay).lte('photo_date', toDay).order('created_at'),
     ])
     if (ev.error || ph.error) return notify(koError((ev.error ?? ph.error)!))
@@ -59,20 +56,7 @@ export default function Calendar({ coupleId, userId, version, notify, colorOf }:
 
   useEffect(() => { load() }, [load, version])
 
-  // 연말·연초에 걸친 반복 기간 일정도 잡히게 앞 해까지 펼친다
-  const years = [days[0].getFullYear() - 1, days[0].getFullYear(), days[41].getFullYear()]
-  const byDay = new Map<string, Occ[]>()
-  for (const o of events.flatMap((ev) => expand(ev, [...new Set(years)]))) {
-    const [y, m, d] = o.first.split('-').map(Number)
-    for (let i = 0; i <= dayDiff(o.first, o.last); i++) {
-      const k = ymd(new Date(y, m - 1, d + i))
-      if (k >= fromDay && k <= toDay) byDay.set(k, [...(byDay.get(k) ?? []), o])
-    }
-  }
-  // 이어지는 기간 일정이 같은 줄에 오게 먼저 시작한 것부터, 같은 날 시작이면 시간순
-  for (const list of byDay.values()) {
-    list.sort((a, b) => a.first.localeCompare(b.first) || (a.ev.all_day ? '' : hm(new Date(a.ev.start_at))).localeCompare(b.ev.all_day ? '' : hm(new Date(b.ev.start_at))))
-  }
+  const byDay = groupByDay(events, fromDay, toDay)
 
   const poke = async () => {
     // 대시보드 에디터로 배포해서 함수 주소(slug)가 hyper-endpoint다. 코드는 supabase/functions/notify
@@ -195,7 +179,7 @@ export default function Calendar({ coupleId, userId, version, notify, colorOf }:
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography sx={{ fontWeight: 700 }} noWrap>{ev.title}</Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {[first !== last && `${md(first)} ~ ${md(last)}`, ev.all_day ? '하루 종일' : hm(new Date(ev.start_at)), ev.repeat_yearly && '매년 반복']
+                    {[first !== last && `${md(first)} ~ ${md(last)}`, ev.all_day ? '하루 종일' : hm(new Date(ev.start_at)), ev.repeat_yearly && '매년 반복', ev.dday && '디데이']
                       .filter(Boolean).join(' · ')}
                   </Typography>
                   {ev.note && <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}>{ev.note}</Typography>}
@@ -239,6 +223,7 @@ function EventDialog({ event, date, coupleId, userId, onClose, onSaved, notify }
 }) {
   const [allDay, setAllDay] = useState(event?.all_day ?? false)
   const [yearly, setYearly] = useState(event?.repeat_yearly ?? false)
+  const [dday, setDday] = useState(event?.dday ?? false)
   const day = event ? ymd(new Date(event.start_at)) : date
 
   const save = async (e: FormEvent<HTMLFormElement>) => {
@@ -256,6 +241,7 @@ function EventDialog({ event, date, coupleId, userId, onClose, onSaved, notify }
       end_date: end && end !== start ? end : null,
       repeat_yearly: yearly,
       repeat_until_year: yearly ? until : null,
+      dday,
     }
     const { error } = event
       ? await supabase.from('events').update(row).eq('id', event.id)
@@ -294,6 +280,7 @@ function EventDialog({ event, date, coupleId, userId, onClose, onSaved, notify }
             <TextField name="until" type="number" label="몇 년도까지 (비우면 계속)" defaultValue={event?.repeat_until_year ?? ''}
               slotProps={{ htmlInput: { min: +day.slice(0, 4), max: 2200 } }} />
           )}
+          <FormControlLabel control={<Switch checked={dday} onChange={(e) => setDday(e.target.checked)} />} label="홈에 디데이로 표시" />
           <TextField name="note" label="메모 (선택)" multiline minRows={2} defaultValue={event?.note ?? ''} />
         </Stack>
       </DialogContent>

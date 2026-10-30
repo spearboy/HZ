@@ -3,6 +3,8 @@ import { BottomNavigation, BottomNavigationAction, Box, Paper, Snackbar } from '
 import CalendarMonthRounded from '@mui/icons-material/CalendarMonthRounded'
 import PhotoLibraryRounded from '@mui/icons-material/PhotoLibraryRounded'
 import SettingsRounded from '@mui/icons-material/SettingsRounded'
+import HomeRounded from '@mui/icons-material/HomeRounded'
+import Summary from './Summary'
 import { supabase } from './supabase'
 import Calendar from './Calendar'
 import Album from './Album'
@@ -35,6 +37,7 @@ export default function Home({ coupleId, userId, onLeft }: { coupleId: string; u
       .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `couple_id=eq.${coupleId}` }, bump)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'photos', filter: `couple_id=eq.${coupleId}` }, bump)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, bump)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'couples', filter: `id=eq.${coupleId}` }, bump)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pokes', filter: `receiver_id=eq.${userId}` }, () => setToast('콕! 상대가 찔렀어요 👉'))
       .subscribe()
     return () => { supabase.removeChannel(ch) }
@@ -46,14 +49,16 @@ export default function Home({ coupleId, userId, onLeft }: { coupleId: string; u
   return (
     <Box sx={{ minHeight: '100dvh', pb: 'calc(72px + env(safe-area-inset-bottom))', bgcolor: 'background.default' }}>
       <Box sx={{ maxWidth: 640, mx: 'auto' }}>
-        {tab === 0 && <Calendar {...props} />}
-        {tab === 1 && <Album {...props} />}
-        {tab === 2 && <Settings {...props} />}
+        {tab === 0 && <Summary {...props} />}
+        {tab === 1 && <Calendar {...props} />}
+        {tab === 2 && <Album {...props} />}
+        {tab === 3 && <Settings {...props} />}
       </Box>
 
       <Paper elevation={0} sx={{ position: 'fixed', left: 0, right: 0, bottom: 0, borderRadius: 0, borderTop: 1, borderColor: 'divider',
         pb: 'env(safe-area-inset-bottom)', backdropFilter: 'blur(12px)', bgcolor: 'color-mix(in srgb, var(--mui-palette-background-paper) 85%, transparent)' }}>
         <BottomNavigation showLabels value={tab} onChange={(_, v) => setTab(v)} sx={{ bgcolor: 'transparent', maxWidth: 640, mx: 'auto' }}>
+          <BottomNavigationAction label="홈" icon={<HomeRounded />} />
           <BottomNavigationAction label="캘린더" icon={<CalendarMonthRounded />} />
           <BottomNavigationAction label="앨범" icon={<PhotoLibraryRounded />} />
           <BottomNavigationAction label="설정" icon={<SettingsRounded />} />
