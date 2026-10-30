@@ -90,6 +90,12 @@ function Paired({ userId }: { userId: string }) {
   }, [])
 
   useEffect(() => { check() }, [check])
+  // 상대가 연결을 끊었을 수 있으니 앱으로 돌아올 때마다 다시 확인
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') check() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [check])
 
   const createCode = async () => {
     const { data, error } = await supabase.rpc('create_invite')
@@ -105,7 +111,7 @@ function Paired({ userId }: { userId: string }) {
   }
 
   if (coupleId === undefined) return <Loading />
-  if (coupleId) return <Home coupleId={coupleId} userId={userId} />
+  if (coupleId) return <Home coupleId={coupleId} userId={userId} onLeft={check} />
 
   return (
     <Centered title="상대와 연결하기" sub="한 사람이 코드를 만들고, 다른 사람이 입력하면 연결돼요">

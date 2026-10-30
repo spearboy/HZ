@@ -227,6 +227,32 @@ do $$ begin
   end;
 end $$;
 
+-- 연결 끊기: 둘 다 끊기고 데이터는 안 보인다. 같은 상대와 다시 연결하면 예전 커플로 복귀
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000a"}';
+do $$ begin
+  if (select count(*) from public.former_members) <> 0 then raise exception 'FAIL: former_members가 보임'; end if;
+end $$;
+select public.leave_couple();
+do $$ begin
+  if public.my_couple_id() is not null then raise exception 'FAIL: 끊은 뒤에도 커플'; end if;
+  if (select count(*) from public.events) <> 0 then raise exception 'FAIL: 끊은 뒤 일정이 보임'; end if;
+end $$;
+select set_config('test.code3', public.create_invite(), true);
+
+reset role;
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000b"}';
+do $$ begin
+  if public.my_couple_id() is not null then raise exception 'FAIL: 상대 쪽 연결이 안 끊김'; end if;
+  if public.accept_invite(current_setting('test.code3')) <> current_setting('test.couple')::uuid then
+    raise exception 'FAIL: 예전 커플로 복귀 안 됨';
+  end if;
+  if (select count(*) from public.couple_members) <> 2 then raise exception 'FAIL: 복귀 후 멤버 수가 틀림'; end if;
+  if (select count(*) from public.events) = 0 then raise exception 'FAIL: 복귀 후 예전 일정이 안 보임'; end if;
+end $$;
+reset role;
+
 -- SQL Editor는 notice를 안 보여 주고 마지막 결과만 보여 주므로 결과 행으로 남긴다
 select 'ALL RLS CHECKS PASSED' as result;
 

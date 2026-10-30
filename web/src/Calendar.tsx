@@ -128,7 +128,7 @@ export default function Calendar({ coupleId, userId, version, notify, colorOf }:
         }}>
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}>
           {WEEK.map((w, i) => (
-            <Typography key={w} variant="caption" sx={{ textAlign: 'center', py: 0.5, fontWeight: 600, color: i === 0 ? 'error.main' : i === 6 ? 'secondary.main' : 'text.secondary' }}>{w}</Typography>
+            <Typography key={w} variant="caption" sx={{ textAlign: 'center', py: 0.5, fontWeight: 600, color: i === 0 ? 'error.main' : i === 6 ? 'info.main' : 'text.secondary' }}>{w}</Typography>
           ))}
         </Box>
         <Box key={ymd(month)} sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
@@ -151,7 +151,7 @@ export default function Calendar({ coupleId, userId, version, notify, colorOf }:
                 <Box sx={{ alignSelf: 'center', width: 26, height: 26, borderRadius: '50%', display: 'grid', placeItems: 'center',
                   fontSize: 13, fontWeight: isToday ? 800 : 500,
                   bgcolor: isToday ? 'primary.main' : 'transparent',
-                  color: isToday ? 'primary.contrastText' : dow === 0 ? 'error.main' : dow === 6 ? 'secondary.main' : 'text.primary' }}>
+                  color: isToday ? 'primary.contrastText' : dow === 0 ? 'error.main' : dow === 6 ? 'info.main' : 'text.primary' }}>
                   {d.getDate()}
                 </Box>
                 {photoDays.has(k) && <PhotoCameraRounded sx={{ position: 'absolute', top: 4, right: 3, fontSize: 11, color: 'text.secondary' }} />}
@@ -181,7 +181,7 @@ export default function Calendar({ coupleId, userId, version, notify, colorOf }:
           {+mm}월 {+dd}일 <Typography component="span" color="text.secondary" sx={{ fontWeight: 500 }}>{selectedDow}요일</Typography>
         </Typography>
         <Button size="small" variant="contained" startIcon={<FavoriteRounded />} onClick={poke}
-          sx={{ background: 'linear-gradient(135deg, var(--mui-palette-primary-main), var(--mui-palette-secondary-main))', color: '#fff' }}>
+          sx={{ background: 'linear-gradient(135deg, var(--mui-palette-primary-main), var(--mui-palette-secondary-main))', color: 'primary.contrastText' }}>
           콕 찌르기
         </Button>
       </Stack>

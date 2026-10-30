@@ -11,13 +11,13 @@ import Settings from './Settings'
 export type Profile = { id: string; display_name: string | null; color: string | null }
 export type TabProps = {
   coupleId: string; userId: string; version: number; notify: (m: string) => void
-  profiles: Profile[]; colorOf: (userId: string) => string; reloadProfiles: () => void
+  profiles: Profile[]; colorOf: (userId: string) => string; reloadProfiles: () => void; onLeft: () => void
 }
 
 // 색을 아직 안 골랐으면 나 = 분홍, 상대 = 파랑
 export const DEFAULT_COLORS = { me: '#ff6b8b', partner: '#5b8def' }
 
-export default function Home({ coupleId, userId }: { coupleId: string; userId: string }) {
+export default function Home({ coupleId, userId, onLeft }: { coupleId: string; userId: string; onLeft: () => void }) {
   const [tab, setTab] = useState(0)
   const [version, setVersion] = useState(0)
   const [toast, setToast] = useState('')
@@ -41,7 +41,7 @@ export default function Home({ coupleId, userId }: { coupleId: string; userId: s
   }, [coupleId, userId])
 
   const colorOf = (id: string) => profiles.find((p) => p.id === id)?.color ?? (id === userId ? DEFAULT_COLORS.me : DEFAULT_COLORS.partner)
-  const props: TabProps = { coupleId, userId, version, notify: setToast, profiles, colorOf, reloadProfiles }
+  const props: TabProps = { coupleId, userId, version, notify: setToast, profiles, colorOf, reloadProfiles, onLeft }
 
   return (
     <Box sx={{ minHeight: '100dvh', pb: 'calc(72px + env(safe-area-inset-bottom))', bgcolor: 'background.default' }}>
