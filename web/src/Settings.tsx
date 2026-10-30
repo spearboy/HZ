@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Avatar, Box, Card, List, ListItem, ListItemAvatar, ListItemButton, ListItemIcon, ListItemText, Switch, Typography } from '@mui/material'
+import { Avatar, Box, ButtonBase, Card, List, ListItem, ListItemAvatar, ListItemButton, ListItemIcon, ListItemText, Switch, Typography, useTheme } from '@mui/material'
+import CheckRounded from '@mui/icons-material/CheckRounded'
 import NotificationsRounded from '@mui/icons-material/NotificationsRounded'
 import EventAvailableRounded from '@mui/icons-material/EventAvailableRounded'
 import LogoutRounded from '@mui/icons-material/LogoutRounded'
@@ -8,15 +9,14 @@ import { enablePush, pushEnabled, pushSupported } from './push'
 import ImportIcs from './ImportIcs'
 import type { TabProps } from './Home'
 
-type Profile = { id: string; display_name: string | null }
+const PALETTE = ['#ff6b8b', '#ff7a59', '#f59f00', '#40c057', '#12b886', '#15aabf', '#5b8def', '#7950f2', '#be4bdb', '#868e96']
 
-export default function Settings({ coupleId, userId, notify }: TabProps) {
-  const [people, setPeople] = useState<Profile[]>([])
+export default function Settings({ coupleId, userId, notify, profiles, colorOf, reloadProfiles }: TabProps) {
+  const { palette } = useTheme()
   const [push, setPush] = useState(false)
   const [importing, setImporting] = useState(false)
 
   useEffect(() => {
-    supabase.from('profiles').select('id,display_name').then(({ data }) => setPeople(data ?? []))
     pushEnabled().then(setPush)
   }, [])
 
@@ -25,8 +25,15 @@ export default function Settings({ coupleId, userId, notify }: TabProps) {
     catch (e) { notify(e instanceof Error ? koError(e) : String(e)) }
   }
 
-  const me = people.find((p) => p.id === userId)
-  const partner = people.find((p) => p.id !== userId)
+  const me = profiles.find((p) => p.id === userId)
+  const partner = profiles.find((p) => p.id !== userId)
+  const myColor = colorOf(userId)
+
+  const pickColor = async (color: string) => {
+    const { error } = await supabase.from('profiles').update({ color }).eq('id', userId)
+    if (error) return notify(koError(error))
+    reloadProfiles()
+  }
 
   return (
     <Box sx={{ p: 2 }}>
@@ -36,11 +43,28 @@ export default function Settings({ coupleId, userId, notify }: TabProps) {
         <List>
           {[me, partner].map((p, i) => p && (
             <ListItem key={p.id}>
-              <ListItemAvatar><Avatar sx={{ bgcolor: i ? 'secondary.main' : 'primary.main' }}>{p.display_name?.[0] ?? '?'}</Avatar></ListItemAvatar>
-              <ListItemText primary={p.display_name ?? '이름 없음'} secondary={i ? '상대 · 파란색 일정' : '나 · 분홍색 일정'} />
+              <ListItemAvatar>
+                <Avatar sx={{ bgcolor: colorOf(p.id), color: palette.getContrastText(colorOf(p.id)) }}>{p.display_name?.[0] ?? '?'}</Avatar>
+              </ListItemAvatar>
+              <ListItemText primary={p.display_name ?? '이름 없음'} secondary={i ? '상대' : '나'} />
             </ListItem>
           ))}
         </List>
+        <Box sx={{ px: 2, pb: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>내 일정 색상</Typography>
+          <Box role="radiogroup" aria-label="내 일정 색상" sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.25 }}>
+            {PALETTE.map((c) => {
+              const on = c === myColor
+              return (
+                <ButtonBase key={c} role="radio" aria-checked={on} aria-label={`색상 ${c}`} onClick={() => pickColor(c)}
+                  sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: c, color: palette.getContrastText(c),
+                    boxShadow: on ? `0 0 0 3px var(--mui-palette-background-paper), 0 0 0 5px ${c}` : 'none', transition: 'box-shadow .15s' }}>
+                  {on && <CheckRounded fontSize="small" />}
+                </ButtonBase>
+              )
+            })}
+          </Box>
+        </Box>
       </Card>
 
       <Card>

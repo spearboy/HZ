@@ -57,6 +57,19 @@ do $$ begin
   end if;
 end $$;
 
+-- 색상: B는 A의 색을 못 바꾸고, 형식이 틀린 색은 거부
+update public.profiles set color = '#000000' where id = '00000000-0000-0000-0000-00000000000a';
+do $$ begin
+  if (select color from public.profiles where id = '00000000-0000-0000-0000-00000000000a') is not null then
+    raise exception 'FAIL: B가 A의 색상을 바꿈';
+  end if;
+  begin
+    update public.profiles set color = 'red' where id = auth.uid();
+    raise exception 'FAIL: 잘못된 색상이 저장됨';
+  exception when check_violation then null;
+  end;
+end $$;
+
 -- C: 무관한 사용자
 reset role;
 set local role authenticated;
@@ -184,6 +197,34 @@ do $$ begin
     raise exception 'FAIL: 알림 대상 수가 틀림';
   end if;
   if (select count(*) from public.due_reminders()) <> 0 then raise exception 'FAIL: 알림 중복 발송'; end if;
+end $$;
+
+-- 매년 반복: 작년 3일 뒤 날짜로 시작한 일정은 올해도 알림, 반복이 작년에 끝난 일정은 알림 없음
+insert into public.events (couple_id, created_by, title, start_at, repeat_yearly, repeat_until_year)
+values
+  (current_setting('test.couple')::uuid, '00000000-0000-0000-0000-00000000000a', 'y3', now() + interval '3 days' - interval '1 year', true, null),
+  (current_setting('test.couple')::uuid, '00000000-0000-0000-0000-00000000000a', 'yold', now() + interval '3 days' - interval '2 years', true,
+   extract(year from now() at time zone 'Asia/Seoul')::int - 1);
+do $$ begin
+  if (select count(*) from public.due_reminders() where title in ('y3', 'yold')) <> 2 then
+    raise exception 'FAIL: 반복 일정 알림 대상이 틀림';
+  end if;
+end $$;
+
+-- 종료일이 시작보다 빠르거나, 반복 없이 종료 연도만 있으면 거부
+do $$ begin
+  begin
+    insert into public.events (couple_id, created_by, title, start_at, end_date)
+    values (current_setting('test.couple')::uuid, '00000000-0000-0000-0000-00000000000a', 'bad', now(), current_date - 5);
+    raise exception 'FAIL: 종료일이 시작보다 빠른 일정이 들어감';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.events (couple_id, created_by, title, start_at, repeat_until_year)
+    values (current_setting('test.couple')::uuid, '00000000-0000-0000-0000-00000000000a', 'bad', now(), 2030);
+    raise exception 'FAIL: 반복 없이 종료 연도가 들어감';
+  exception when check_violation then null;
+  end;
 end $$;
 
 -- SQL Editor는 notice를 안 보여 주고 마지막 결과만 보여 주므로 결과 행으로 남긴다

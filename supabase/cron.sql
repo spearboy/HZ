@@ -6,7 +6,7 @@ select cron.schedule(
   '0 0 * * *',
   $$
   select net.http_post(
-    url := 'https://mnqzvqpmmpvvxrhbwvyc.supabase.co/functions/v1/notify',
+    url := 'https://mnqzvqpmmpvvxrhbwvyc.supabase.co/functions/v1/hyper-endpoint',
     headers := jsonb_build_object('Content-Type', 'application/json', 'x-cron-secret', '<CRON_SECRET>'),
     body := '{"type":"reminders"}'::jsonb
   );

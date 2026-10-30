@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { BottomNavigation, BottomNavigationAction, Box, Paper, Snackbar } from '@mui/material'
 import CalendarMonthRounded from '@mui/icons-material/CalendarMonthRounded'
 import PhotoLibraryRounded from '@mui/icons-material/PhotoLibraryRounded'
@@ -8,12 +8,25 @@ import Calendar from './Calendar'
 import Album from './Album'
 import Settings from './Settings'
 
-export type TabProps = { coupleId: string; userId: string; version: number; notify: (m: string) => void }
+export type Profile = { id: string; display_name: string | null; color: string | null }
+export type TabProps = {
+  coupleId: string; userId: string; version: number; notify: (m: string) => void
+  profiles: Profile[]; colorOf: (userId: string) => string; reloadProfiles: () => void
+}
+
+// 색을 아직 안 골랐으면 나 = 분홍, 상대 = 파랑
+export const DEFAULT_COLORS = { me: '#ff6b8b', partner: '#5b8def' }
 
 export default function Home({ coupleId, userId }: { coupleId: string; userId: string }) {
   const [tab, setTab] = useState(0)
   const [version, setVersion] = useState(0)
   const [toast, setToast] = useState('')
+  const [profiles, setProfiles] = useState<Profile[]>([])
+
+  const reloadProfiles = useCallback(() => {
+    supabase.from('profiles').select('id,display_name,color').then(({ data }) => setProfiles(data ?? []))
+  }, [])
+  useEffect(reloadProfiles, [reloadProfiles, version])
 
   // 상대가 바꾼 일정/사진은 version을 올려 각 탭이 다시 불러오게 하고, 찌르기를 받으면 알려 준다
   useEffect(() => {
@@ -21,12 +34,14 @@ export default function Home({ coupleId, userId }: { coupleId: string; userId: s
     const ch = supabase.channel('couple')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `couple_id=eq.${coupleId}` }, bump)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'photos', filter: `couple_id=eq.${coupleId}` }, bump)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, bump)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pokes', filter: `receiver_id=eq.${userId}` }, () => setToast('콕! 상대가 찔렀어요 👉'))
       .subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [coupleId, userId])
 
-  const props: TabProps = { coupleId, userId, version, notify: setToast }
+  const colorOf = (id: string) => profiles.find((p) => p.id === id)?.color ?? (id === userId ? DEFAULT_COLORS.me : DEFAULT_COLORS.partner)
+  const props: TabProps = { coupleId, userId, version, notify: setToast, profiles, colorOf, reloadProfiles }
 
   return (
     <Box sx={{ minHeight: '100dvh', pb: 'calc(72px + env(safe-area-inset-bottom))', bgcolor: 'background.default' }}>
