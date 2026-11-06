@@ -17,5 +17,5 @@
    - `npx web-push generate-vapid-keys` → Public Key는 `web/.env`와 Vercel 환경변수 `VITE_VAPID_PUBLIC_KEY`에
    - `npx supabase login` → `npx supabase link --project-ref mnqzvqpmmpvvxrhbwvyc`
    - `npx supabase secrets set VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=... VAPID_SUBJECT=mailto:<이메일> CRON_SECRET=<임의 긴 문자열>`
-   - `npx supabase functions deploy notify --no-verify-jwt --use-api`
+   - `npx supabase functions deploy hyper-endpoint --no-verify-jwt --use-api` (폴더 이름 = 함수 주소. 앱과 cron이 이 이름을 부른다)
    - Database > Extensions에서 pg_cron, pg_net 켜고 `supabase/cron.sql`의 <CRON_SECRET>을 바꿔 SQL Editor에서 실행

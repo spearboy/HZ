@@ -69,7 +69,6 @@ export default function Calendar({ coupleId, userId, version, notify, colorOf }:
   const byDay = groupByDay(events, fromDay, toDay)
 
   const poke = async () => {
-    // 대시보드 에디터로 배포해서 함수 주소(slug)가 hyper-endpoint다. 코드는 supabase/functions/notify
     const { error } = await supabase.functions.invoke('hyper-endpoint', { body: { type: 'poke' } })
     if (!error) return notify('콕 찔렀어요 👉')
     const body = await (error as { context?: Response }).context?.json().catch(() => null)
