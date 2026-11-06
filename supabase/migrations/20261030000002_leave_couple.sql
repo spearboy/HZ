@@ -1,7 +1,7 @@
 -- 연결 끊기 / 같은 상대와 다시 연결하면 예전 커플(일정·사진)을 그대로 이어 쓰기
 
 -- 끊긴 커플의 옛 멤버 기록. 정책 없음 = 클라이언트는 못 보고 RPC(definer)만 쓴다
-create table public.former_members (
+create table if not exists public.former_members (
   couple_id uuid not null references public.couples(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
   left_at timestamptz not null default now(),

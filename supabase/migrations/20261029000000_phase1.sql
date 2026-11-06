@@ -1,6 +1,7 @@
 -- Phase 0/1: 인증, 커플 연결, 공유 일정. 사진/찌르기/알림 테이블은 해당 Phase에서 추가한다.
+-- 이 파일들은 처음부터 다시 순서대로 돌려도 되게 전부 '있으면 넘어가기'로 쓴다.
 
-create table public.profiles (
+create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   display_name text,
   created_at timestamptz not null default now()
@@ -14,27 +15,29 @@ set search_path = public
 as $$
 begin
   insert into public.profiles (id, display_name)
-  values (new.id, coalesce(new.raw_user_meta_data->>'name', new.raw_user_meta_data->>'full_name', new.email));
+  values (new.id, coalesce(new.raw_user_meta_data->>'name', new.raw_user_meta_data->>'full_name', new.email))
+  on conflict (id) do nothing;
   return new;
 end $$;
 
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
-create table public.couples (
+create table if not exists public.couples (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now()
 );
 
-create table public.couple_members (
+create table if not exists public.couple_members (
   couple_id uuid not null references public.couples(id) on delete cascade,
   user_id uuid not null unique references auth.users(id) on delete cascade,
   joined_at timestamptz not null default now(),
   primary key (couple_id, user_id)
 );
 
-create table public.invites (
+create table if not exists public.invites (
   code text primary key,
   couple_id uuid not null references public.couples(id) on delete cascade,
   created_by uuid not null references auth.users(id) on delete cascade,
@@ -42,7 +45,7 @@ create table public.invites (
   used_at timestamptz
 );
 
-create table public.events (
+create table if not exists public.events (
   id uuid primary key default gen_random_uuid(),
   couple_id uuid not null references public.couples(id) on delete cascade,
   created_by uuid not null references auth.users(id),
@@ -54,7 +57,7 @@ create table public.events (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index events_couple_start on public.events (couple_id, start_at);
+create index if not exists events_couple_start on public.events (couple_id, start_at);
 
 create or replace function public.my_couple_id()
 returns uuid
@@ -129,23 +132,36 @@ alter table public.couple_members enable row level security;
 alter table public.invites        enable row level security;  -- 정책 없음 = 클라이언트 접근 차단
 alter table public.events         enable row level security;
 
+drop policy if exists profiles_select on public.profiles;
 create policy profiles_select on public.profiles for select to authenticated
   using (id = auth.uid()
       or id in (select user_id from public.couple_members where couple_id = public.my_couple_id()));
+
+drop policy if exists profiles_update on public.profiles;
 create policy profiles_update on public.profiles for update to authenticated
   using (id = auth.uid()) with check (id = auth.uid());
 
+drop policy if exists couples_select on public.couples;
 create policy couples_select on public.couples for select to authenticated
   using (id = public.my_couple_id());
+
+drop policy if exists members_select on public.couple_members;
 create policy members_select on public.couple_members for select to authenticated
   using (couple_id = public.my_couple_id());
 
+drop policy if exists events_select on public.events;
 create policy events_select on public.events for select to authenticated
   using (couple_id = public.my_couple_id());
+
+drop policy if exists events_insert on public.events;
 create policy events_insert on public.events for insert to authenticated
   with check (couple_id = public.my_couple_id() and created_by = auth.uid());
+
+drop policy if exists events_update on public.events;
 create policy events_update on public.events for update to authenticated
   using (couple_id = public.my_couple_id()) with check (couple_id = public.my_couple_id());
+
+drop policy if exists events_delete on public.events;
 create policy events_delete on public.events for delete to authenticated
   using (couple_id = public.my_couple_id());
 
@@ -160,8 +176,23 @@ begin
   return new;
 end $$;
 
+drop trigger if exists events_before_update on public.events;
 create trigger events_before_update
   before update on public.events
   for each row execute function public.events_before_update();
 
-alter publication supabase_realtime add table public.events;
+-- 이미 publication에 들어 있으면 다시 넣지 않는다
+do $$
+declare t text;
+begin
+  -- 셀프호스트 등 supabase_realtime publication 자체가 없을 수도 있다
+  if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then return; end if;
+  foreach t in array array['events'] loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;

@@ -151,7 +151,7 @@ export default function Settings({ coupleId, userId, notify, profiles, colorOf, 
           <ListItem secondaryAction={pushSupported() && <Switch edge="end" checked={push} disabled={push} onChange={turnOnPush} />}>
             <ListItemIcon><BellIcon size={22} /></ListItemIcon>
             <ListItemText primary="푸시 알림"
-              secondary={pushSupported() ? '찌르기, 일정 7·3·1일 전과 당일 오전 9시' : "아이폰은 Safari 공유 → '홈 화면에 추가' 후 그 앱에서 켤 수 있어요"} />
+              secondary={pushSupported() ? '찌르기, 일정 당일 아침 9시와 시작 1시간 전' : "아이폰은 Safari 공유 → '홈 화면에 추가' 후 그 앱에서 켤 수 있어요"} />
           </ListItem>
           <ListItem secondaryAction={
             <Switch edge="end" checked={fx} onChange={(e) => { setFx(e.target.checked); setFxOn(e.target.checked) }} />

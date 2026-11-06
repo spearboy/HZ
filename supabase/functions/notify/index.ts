@@ -1,6 +1,6 @@
 // 푸시 발송 함수. 두 가지 호출:
 //  - 앱: { type: 'poke' } + 사용자 JWT → send_poke RPC(하루 1회는 DB가 강제) 후 상대에게 푸시
-//  - pg_cron: { type: 'reminders' } + x-cron-secret 헤더 → due_reminders() 결과대로 푸시
+//  - pg_cron: { type: 'reminders' } + x-cron-secret 헤더 → due_reminders() 결과대로 푸시 (10분마다)
 // 배포: supabase functions deploy notify --no-verify-jwt  (인증은 아래에서 직접 확인한다)
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import webpush from 'npm:web-push@3.6.7'
@@ -30,7 +30,7 @@ async function pushTo(userId: string, payload: { title: string; body: string }) 
   }
 }
 
-const label: Record<string, string> = { '7d': '7일 뒤', '3d': '3일 뒤', '1d': '내일', '0d': '오늘' }
+const label: Record<string, string> = { '0d': '오늘', '1h': '1시간 뒤' }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
