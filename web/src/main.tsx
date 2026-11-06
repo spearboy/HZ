@@ -1,15 +1,15 @@
 import { StrictMode, useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { CssBaseline, ThemeProvider } from '@mui/material'
-import { makeTheme, THEMES, ThemeChoice, type ThemeId } from './theme'
+import { DEFAULT_THEME, makeTheme, THEMES, ThemeChoice, type ThemeId } from './theme'
 import App from './App.tsx'
 
 const KEY = 'theme'
 const saved = (): ThemeId => {
   try {
     const v = localStorage.getItem(KEY)
-    return THEMES.some((t) => t.id === v) ? (v as ThemeId) : 'blue'
-  } catch { return 'blue' }
+    return THEMES.some((t) => t.id === v) ? (v as ThemeId) : DEFAULT_THEME
+  } catch { return DEFAULT_THEME }
 }
 
 function Root() {

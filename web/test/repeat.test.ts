@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
-import { coupleDays, dLabel, expand, groupByDay, nextStart, type Event } from '../src/repeat.ts'
+import { coupleDays, dLabel, expand, groupByDay, layout, nextStart, slotOf, type Event } from '../src/repeat.ts'
 
 const base: Event = { id: '1', title: 't', note: null, start_at: new Date(2024, 11, 30, 12).toISOString(), all_day: false,
-  created_by: 'a', end_date: null, repeat_yearly: false, repeat_until_year: null, dday: false }
+  created_by: 'a', end_date: null, repeat_yearly: false, repeat_until_year: null, dday: false, end_at: null }
 const range = (o: { first: string; last: string }[]) => o.map((x) => `${x.first}~${x.last}`)
 
 assert.deepEqual(range(expand(base, [2024, 2025])), ['2024-12-30~2024-12-30'])
@@ -31,3 +31,28 @@ assert.deepEqual(coupleDays('2024-01-01', '2025-01-01').anniversary, { years: 1,
 assert.equal(dLabel(0), 'D-DAY')
 assert.equal(dLabel(12), 'D-12')
 console.log('repeat ok')
+
+// 시간표 배치: 안 겹치면 한 칸씩 전부 차지, 겹치면 그 묶음 안에서만 나눈다
+{
+  const ev = (id: string): Event => ({ ...base, id })
+  const L = layout([
+    { ev: ev('a'), from: 540, to: 600 },   // 09:00~10:00
+    { ev: ev('b'), from: 570, to: 660 },   // 09:30~11:00  (a와 겹침)
+    { ev: ev('c'), from: 840, to: 900 },   // 14:00~15:00  (아무와도 안 겹침)
+  ])
+  const by = Object.fromEntries(L.map((s) => [s.ev.id, `${s.lane}/${s.lanes}`]))
+  assert.deepEqual(by, { a: '0/2', b: '1/2', c: '0/1' })
+}
+{
+  // 앞 일정이 끝난 뒤 시작하면 같은 칸을 다시 쓴다
+  const ev = (id: string): Event => ({ ...base, id })
+  const L = layout([
+    { ev: ev('a'), from: 540, to: 600 },
+    { ev: ev('b'), from: 600, to: 660 },
+  ])
+  assert.deepEqual(L.map((s) => `${s.lane}/${s.lanes}`), ['0/1', '0/1'])
+}
+// 끝 시각이 없으면 1시간짜리로 본다
+assert.deepEqual(slotOf({ ...base, start_at: new Date(2025, 0, 2, 9, 30).toISOString(), end_at: null }), { from: 570, to: 630 })
+assert.deepEqual(slotOf({ ...base, start_at: new Date(2025, 0, 2, 9, 30).toISOString(), end_at: new Date(2025, 0, 2, 11, 0).toISOString() }), { from: 570, to: 660 })
+console.log('layout ok')

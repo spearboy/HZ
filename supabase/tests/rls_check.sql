@@ -81,6 +81,55 @@ do $$ begin
   end;
 end $$;
 
+-- 닉네임: 20자 초과/공백만 거부, B는 A의 닉네임을 못 바꾼다
+do $$ begin
+  update public.profiles set display_name = '  혜지  ' where id = auth.uid();
+  if (select display_name from public.profiles where id = auth.uid()) <> '  혜지  ' then
+    raise exception 'FAIL: 닉네임 저장 안 됨';
+  end if;
+  begin
+    update public.profiles set display_name = repeat('가', 21) where id = auth.uid();
+    raise exception 'FAIL: 21자 닉네임이 저장됨';
+  exception when check_violation then null;
+  end;
+  begin
+    update public.profiles set display_name = '   ' where id = auth.uid();
+    raise exception 'FAIL: 공백만 있는 닉네임이 저장됨';
+  exception when check_violation then null;
+  end;
+  update public.profiles set display_name = '남의이름' where id = '00000000-0000-0000-0000-00000000000a';
+  if (select display_name from public.profiles where id = '00000000-0000-0000-0000-00000000000a') = '남의이름' then
+    raise exception 'FAIL: B가 A의 닉네임을 바꿈';
+  end if;
+end $$;
+
+-- 프로필 사진: 확대/위치는 범위 밖이면 거부
+do $$ begin
+  update public.profiles set avatar_path = 'c/avatar/b.jpg', avatar_zoom = 2.5, avatar_x = 30, avatar_y = 70 where id = auth.uid();
+  if (select avatar_zoom from public.profiles where id = auth.uid()) <> 2.5 then raise exception 'FAIL: 아바타 설정 저장 안 됨'; end if;
+  begin
+    update public.profiles set avatar_zoom = 9 where id = auth.uid();
+    raise exception 'FAIL: 범위 밖 확대가 저장됨';
+  exception when check_violation then null;
+  end;
+  begin
+    update public.profiles set avatar_x = -1 where id = auth.uid();
+    raise exception 'FAIL: 범위 밖 위치가 저장됨';
+  exception when check_violation then null;
+  end;
+end $$;
+
+-- 메인 카드 배경: B는 자기 커플 것만 바꿀 수 있고, 허용 안 된 칸은 여전히 막힌다
+do $$ begin
+  update public.couples set cover_path = current_setting('test.couple') || '/cover/x.jpg', cover_zoom = 1.4, cover_x = 40, cover_y = 60;
+  if (select cover_zoom from public.couples) <> 1.4 then raise exception 'FAIL: 배경 설정 저장 안 됨'; end if;
+  begin
+    update public.couples set cover_zoom = 0.2;
+    raise exception 'FAIL: 범위 밖 배경 확대가 저장됨';
+  exception when check_violation then null;
+  end;
+end $$;
+
 -- C: 무관한 사용자
 reset role;
 set local role authenticated;
@@ -196,10 +245,14 @@ do $$ begin
   if (select count(*) from public.push_subscriptions) <> 0 then raise exception 'FAIL: C가 구독을 봄'; end if;
 end $$;
 update public.couples set started_on = '2000-01-01';
+update public.couples set cover_path = 'hack/x.jpg', cover_zoom = 4;
 reset role;
 do $$ begin
   if (select started_on from public.couples where id = current_setting('test.couple')::uuid) is distinct from '2024-05-01' then
     raise exception 'FAIL: C가 남의 사귄 날을 바꿈';
+  end if;
+  if (select count(*) from public.couples where cover_path = 'hack/x.jpg') <> 0 then
+    raise exception 'FAIL: C가 남의 배경 사진을 바꿈';
   end if;
 end $$;
 set local role authenticated;

@@ -2,15 +2,37 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/icon-192.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#6c9ef8" />
+    <meta name="theme-color" content="#9d8bf0" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
-    <title>우리 캘린더</title>
+    <title>MORO</title>
+    <style>
+      /* 첫 화면: JS 번들을 기다리는 동안 바로 보이는 랜딩. 애니메이션이 끝나면 스스로 사라져서 JS가 필요 없다 */
+      #splash {
+        position: fixed; inset: 0; z-index: 9999; background: #0a0a0f;
+        display: grid; place-content: center; justify-items: center; gap: 18px;
+        animation: splash-out .95s ease forwards;
+      }
+      @keyframes splash-out { 0%, 65% { opacity: 1 } 100% { opacity: 0; visibility: hidden } }
+      #splash img {
+        width: 104px; height: 104px; border-radius: 26px;
+        animation: splash-pop .55s cubic-bezier(.2, .9, .3, 1.25);
+      }
+      @keyframes splash-pop { from { opacity: 0; transform: scale(.82) } to { opacity: 1; transform: none } }
+      #splash b {
+        font: 700 20px/1 Pretendard, system-ui, sans-serif; letter-spacing: .42em; padding-left: .42em;
+        background: linear-gradient(100deg, #cdb8f9, #e8e4ff 45%, #8fa5f2);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+        animation: splash-pop .55s .12s backwards cubic-bezier(.2, .9, .3, 1.25);
+      }
+      @media (prefers-reduced-motion: reduce) { #splash, #splash img, #splash b { animation-duration: .01s } }
+    </style>
   </head>
   <body>
+    <div id="splash"><img src="/icon-192.png" alt="" /><b>MORO</b></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

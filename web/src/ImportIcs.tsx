@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Alert, Box, Button, Checkbox, List, ListItemButton, ListItemIcon, ListItemText, Stack } from '@mui/material'
-import UploadFileRounded from '@mui/icons-material/UploadFileRounded'
+import { FileUpIcon } from '@animateicons/react/lucide'
 import { parseIcs, type IcsEvent } from './ics'
 import { koError, supabase } from './supabase'
 
@@ -40,7 +40,7 @@ export default function ImportIcs({ coupleId, userId, onDone }: { coupleId: stri
   return (
     <Stack spacing={1.5}>
       {!list?.length && (
-        <Button component="label" variant="outlined" startIcon={<UploadFileRounded />}>
+        <Button component="label" variant="outlined" startIcon={<FileUpIcon size={18} />}>
           .ics 파일 선택
           <input type="file" accept=".ics,text/calendar" hidden onChange={(e) => e.target.files?.[0] && open(e.target.files[0])} />
         </Button>

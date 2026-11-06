@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Alert, Box, Button, Card, CardContent, CircularProgress, Divider, Stack, TextField, Typography } from '@mui/material'
-import FavoriteRounded from '@mui/icons-material/FavoriteRounded'
 import { auth, koError, supabase } from './supabase'
 import Home from './Home'
 
@@ -30,10 +29,8 @@ function Centered({ title, sub, children }: { title: string; sub: string; childr
       background: (t) => `radial-gradient(circle at 20% 0%, ${t.vars!.palette.primary.main}33, transparent 60%)` }}>
       <Stack spacing={3} sx={{ width: '100%', maxWidth: 400 }}>
         <Stack sx={{ alignItems: 'center' }} spacing={1}>
-          <Box sx={{ width: 64, height: 64, borderRadius: '22px', bgcolor: 'primary.main', color: 'primary.contrastText', display: 'grid', placeItems: 'center', boxShadow: 4 }}>
-            <FavoriteRounded fontSize="large" />
-          </Box>
-          <Typography variant="h5">{title}</Typography>
+          <Box component="img" src="/icon-192.png" alt="MORO" sx={{ width: 72, height: 72, borderRadius: '22px', boxShadow: 4 }} />
+          <Typography variant="h5" sx={{ letterSpacing: title === 'MORO' ? '.28em' : 0, pl: title === 'MORO' ? '.28em' : 0 }}>{title}</Typography>
           <Typography color="text.secondary" sx={{ textAlign: 'center' }}>{sub}</Typography>
         </Stack>
         <Card><CardContent><Stack spacing={2}>{children}</Stack></CardContent></Card>
@@ -55,7 +52,7 @@ function Login() {
   }
 
   return (
-    <Centered title="우리 캘린더" sub="둘만의 일정과 사진을 함께 모아요">
+    <Centered title="MORO" sub="둘만의 일정과 사진을 함께 모아요">
       <Button size="large" onClick={() => auth.oauth('kakao')}
         sx={{ bgcolor: '#fee500', color: '#191919', '&:hover': { bgcolor: '#f5dc00' } }}>
         카카오로 시작하기

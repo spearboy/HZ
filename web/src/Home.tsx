@@ -1,16 +1,37 @@
-import { useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { BottomNavigation, BottomNavigationAction, Box, Paper, Snackbar } from '@mui/material'
-import CalendarMonthRounded from '@mui/icons-material/CalendarMonthRounded'
-import PhotoLibraryRounded from '@mui/icons-material/PhotoLibraryRounded'
-import SettingsRounded from '@mui/icons-material/SettingsRounded'
-import HomeRounded from '@mui/icons-material/HomeRounded'
+import { CalendarDaysIcon, HouseIcon, ImageIcon, SettingsIcon } from '@animateicons/react/lucide'
+import { makeIcon, type Playable } from './icons'
+import { keyframes } from '@emotion/react'
 import Summary from './Summary'
+import { CalendarSkeleton, GridSkeleton, SummarySkeleton } from './Skeletons'
+import { signedUrl } from './Photos'
+import { DEFAULT_FIT, type Fit } from './ImageFit'
 import { supabase } from './supabase'
-import Calendar from './Calendar'
-import Album from './Album'
-import Settings from './Settings'
+// 처음 보이는 홈만 바로 싣고, 나머지 탭은 그 탭을 열 때 받아온다
+const Calendar = lazy(() => import('./Calendar'))
+const Album = lazy(() => import('./Album'))
+const Settings = lazy(() => import('./Settings'))
 
-export type Profile = { id: string; display_name: string | null; color: string | null }
+const fadeIn = keyframes`from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none }`
+
+const TABS = [
+  { label: '홈', Icon: makeIcon(HouseIcon) },
+  { label: '캘린더', Icon: makeIcon(CalendarDaysIcon) },
+  { label: '앨범', Icon: makeIcon(ImageIcon) },
+  { label: '설정', Icon: makeIcon(SettingsIcon) },
+] as const
+
+const SKELETON = [<SummarySkeleton />, <CalendarSkeleton />, <GridSkeleton />, <GridSkeleton rows={1} />]
+
+export type Profile = {
+  id: string; display_name: string | null; color: string | null
+  avatar_path: string | null; avatar_zoom: number; avatar_x: number; avatar_y: number
+  avatarUrl?: string | null
+}
+const PROFILE_COLUMNS = 'id,display_name,color,avatar_path,avatar_zoom,avatar_x,avatar_y'
+export const avatarFit = (p: Profile): Fit =>
+  p.avatar_path ? { zoom: p.avatar_zoom, x: p.avatar_x, y: p.avatar_y } : DEFAULT_FIT
 export type TabProps = {
   coupleId: string; userId: string; version: number; notify: (m: string) => void
   profiles: Profile[]; colorOf: (userId: string) => string; reloadProfiles: () => void; onLeft: () => void
@@ -25,10 +46,12 @@ export default function Home({ coupleId, userId, onLeft }: { coupleId: string; u
   const [toast, setToast] = useState('')
   const [profiles, setProfiles] = useState<Profile[]>([])
 
-  const reloadProfiles = useCallback(() => {
-    supabase.from('profiles').select('id,display_name,color').then(({ data }) => setProfiles(data ?? []))
+  const reloadProfiles = useCallback(async () => {
+    const { data } = await supabase.from('profiles').select(PROFILE_COLUMNS)
+    // 비공개 버킷이라 프로필 사진도 서명 URL이 필요하다
+    setProfiles(await Promise.all((data ?? []).map(async (p) => ({ ...p, avatarUrl: await signedUrl(p.avatar_path) }))))
   }, [])
-  useEffect(reloadProfiles, [reloadProfiles, version])
+  useEffect(() => { reloadProfiles() }, [reloadProfiles, version])
 
   // 상대가 바꾼 일정/사진은 version을 올려 각 탭이 다시 불러오게 하고, 찌르기를 받으면 알려 준다
   useEffect(() => {
@@ -48,20 +71,23 @@ export default function Home({ coupleId, userId, onLeft }: { coupleId: string; u
 
   return (
     <Box sx={{ minHeight: '100dvh', pb: 'calc(72px + env(safe-area-inset-bottom))', bgcolor: 'background.default' }}>
-      <Box sx={{ maxWidth: 640, mx: 'auto' }}>
-        {tab === 0 && <Summary {...props} />}
-        {tab === 1 && <Calendar {...props} />}
-        {tab === 2 && <Album {...props} />}
-        {tab === 3 && <Settings {...props} />}
+      <Box key={tab} sx={{ maxWidth: 640, mx: 'auto',
+        animation: `${fadeIn} .22s ease-out`,
+        '@media (prefers-reduced-motion: reduce)': { animation: 'none' } }}>
+        <Suspense fallback={SKELETON[tab]}>
+          {tab === 0 && <Summary {...props} />}
+          {tab === 1 && <Calendar {...props} />}
+          {tab === 2 && <Album {...props} />}
+          {tab === 3 && <Settings {...props} />}
+        </Suspense>
       </Box>
 
       <Paper elevation={0} sx={{ position: 'fixed', left: 0, right: 0, bottom: 0, borderRadius: 0, borderTop: 1, borderColor: 'divider',
         pb: 'env(safe-area-inset-bottom)', backdropFilter: 'blur(12px)', bgcolor: 'color-mix(in srgb, var(--mui-palette-background-paper) 85%, transparent)' }}>
         <BottomNavigation showLabels value={tab} onChange={(_, v) => setTab(v)} sx={{ bgcolor: 'transparent', maxWidth: 640, mx: 'auto' }}>
-          <BottomNavigationAction label="홈" icon={<HomeRounded />} />
-          <BottomNavigationAction label="캘린더" icon={<CalendarMonthRounded />} />
-          <BottomNavigationAction label="앨범" icon={<PhotoLibraryRounded />} />
-          <BottomNavigationAction label="설정" icon={<SettingsRounded />} />
+          {TABS.map(({ label, Icon }, i) => (
+            <BottomNavigationAction key={label} label={label} icon={<TabIcon Icon={Icon} active={tab === i} />} />
+          ))}
         </BottomNavigation>
       </Paper>
 
@@ -69,4 +95,11 @@ export default function Home({ coupleId, userId, onLeft }: { coupleId: string; u
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }} />
     </Box>
   )
+}
+
+// 탭이 선택되는 순간 그 아이콘만 한 번 움직인다
+function TabIcon({ Icon, active }: { Icon: (typeof TABS)[number]['Icon']; active: boolean }) {
+  const ref = useRef<Playable>(null)
+  useEffect(() => { if (active) ref.current?.play() }, [active])
+  return <Icon ref={ref} size={23} />
 }
