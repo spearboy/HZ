@@ -49,7 +49,10 @@ Deno.serve(async (req) => {
   }
 
   if (type === 'reminders') {
-    const secret = Deno.env.get('CRON_SECRET')
+    // 비밀값은 DB(public.cron_secret)에만 둔다. 예전처럼 cron과 여기에 같은 값을 따로 넣어 두면
+    // 한쪽만 틀려도 403만 조용히 반복된다. CRON_SECRET 환경변수는 옛 배포를 위한 대비책으로만 남긴다
+    const { data: row } = await admin.from('cron_secret').select('secret').maybeSingle()
+    const secret = row?.secret ?? Deno.env.get('CRON_SECRET')
     if (!secret || req.headers.get('x-cron-secret') !== secret) return json({ message: 'forbidden' }, 403)
     const { data, error } = await admin.rpc('due_reminders')
     if (error) return json({ message: error.message }, 500)
