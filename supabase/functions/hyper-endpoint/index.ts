@@ -37,6 +37,10 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   const { type } = await req.json().catch(() => ({}))
 
+  // 브라우저가 구독할 때 쓸 VAPID 공개키를 알려 준다. 공개키라 숨길 값이 아니다.
+  // 빌드 시점 환경변수에 따로 넣어 두면 여기 키와 어긋나도 구독은 되고 발송만 조용히 실패한다(실제로 그랬다).
+  if (type === 'vapid') return json({ publicKey: Deno.env.get('VAPID_PUBLIC_KEY') ?? null })
+
   if (type === 'poke') {
     // 사용자 권한으로 RPC를 불러야 auth.uid()와 RLS가 그대로 적용된다
     const user = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, {
