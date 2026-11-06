@@ -8,15 +8,56 @@ export const PHOTO_COLUMNS = 'id,photo_date,storage_path,thumb_path,uploaded_by'
 
 export const bucket = () => supabase.storage.from('photos')
 
-// 비공개 버킷이라 모든 이미지는 서명 URL로만 보인다
-export const signedUrl = async (path: string | null) =>
-  path ? ((await bucket().createSignedUrl(path, 3600)).data?.signedUrl ?? null) : null
+// 비공개 버킷이라 모든 이미지는 서명 URL로만 보인다.
+// 그런데 서명할 때마다 URL이 달라져서, 같은 사진인데도 브라우저가 매번 다시 받아 온다.
+// 그래서 경로별 URL을 기기에 저장해 두고 유효한 동안 그대로 재사용한다.
+// 같은 URL이면 브라우저 디스크 캐시가 그림을 바로 꺼내 주므로 서명 요청도, 다운로드도 사라진다.
+const URL_TTL = 6 * 60 * 60          // 서명 URL 유효기간(초)
+const REUSE_MARGIN = 10 * 60 * 1000  // 만료 10분 전부터는 새로 받는다
+const CACHE_KEY = 'signedUrls'
 
-// 비공개 버킷이라 썸네일도 서명 URL로만 보인다
+type Signed = Record<string, { url: string; exp: number }>
+
+const readCache = (): Signed => {
+  try { return JSON.parse(localStorage.getItem(CACHE_KEY) ?? '{}') as Signed } catch { return {} }
+}
+const writeCache = (c: Signed) => {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(c)) } catch { /* 용량 초과 등은 그냥 캐시 없이 간다 */ }
+}
+
+// 캐시에 없거나 곧 만료될 것만 한 번에 서명해서 채운다
+export async function signedUrls(paths: string[]): Promise<(string | null)[]> {
+  const cache = readCache()
+  const now = Date.now()
+  const stale = [...new Set(paths.filter((p) => !(cache[p] && cache[p].exp - now > REUSE_MARGIN)))]
+
+  if (stale.length) {
+    const { data } = await bucket().createSignedUrls(stale, URL_TTL)
+    data?.forEach((d, i) => {
+      if (d.signedUrl) cache[stale[i]] = { url: d.signedUrl, exp: now + URL_TTL * 1000 }
+    })
+    // 여러 화면이 동시에 서명을 요청하면 서로의 결과를 덮어쓴다. 쓰기 직전에 다시 읽어 합친다
+    const merged = { ...readCache(), ...cache }
+    for (const k of Object.keys(merged)) if (merged[k].exp <= now) delete merged[k] // 만료된 건 버린다
+    writeCache(merged)
+    Object.assign(cache, merged)
+  }
+  return paths.map((p) => cache[p]?.url ?? null)
+}
+
+export const signedUrl = async (path: string | null) => (path ? (await signedUrls([path]))[0] : null)
+
+// 사진을 지우면 그 경로의 캐시도 같이 버린다
+export function forgetSigned(paths: string[]) {
+  const cache = readCache()
+  for (const p of paths) delete cache[p]
+  writeCache(cache)
+}
+
 export async function withThumbs(rows: Photo[]): Promise<Photo[]> {
   if (!rows.length) return []
-  const { data } = await bucket().createSignedUrls(rows.map((p) => p.thumb_path), 3600)
-  return rows.map((p, i) => ({ ...p, thumbUrl: data?.[i]?.signedUrl }))
+  const urls = await signedUrls(rows.map((p) => p.thumb_path))
+  return rows.map((p, i) => ({ ...p, thumbUrl: urls[i] }))
 }
 
 // 긴 변 기준으로 줄여 JPEG로 만든다. 원본 수 MB → 수백 KB
@@ -56,8 +97,7 @@ export function PhotoGrid({ photos, userId, cols = 3, onChanged, onError }: {
   const show = async (p: Photo) => {
     setOpen(p)
     setFullUrl(undefined)
-    const { data } = await bucket().createSignedUrl(p.storage_path, 3600)
-    setFullUrl(data?.signedUrl)
+    setFullUrl((await signedUrl(p.storage_path)) ?? undefined)
   }
 
   const download = async (p: Photo) => {
@@ -72,6 +112,7 @@ export function PhotoGrid({ photos, userId, cols = 3, onChanged, onError }: {
     const { error } = await supabase.from('photos').delete().eq('id', p.id)
     if (error) return onError(error.message)
     await bucket().remove([p.storage_path, p.thumb_path])
+    forgetSigned([p.storage_path, p.thumb_path])
     setOpen(null)
     onChanged()
   }

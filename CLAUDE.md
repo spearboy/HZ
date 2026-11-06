@@ -14,7 +14,7 @@
 1. Supabase SQL Editor에서 `supabase/migrations/*.sql`을 이름 순서대로 실행 → `supabase/tests/rls_check.sql` 실행 (마지막 결과가 'ALL RLS CHECKS PASSED')
 2. `cd web && cp .env.example .env` 후 값 입력 → `npm i && npm run dev` / 파서 테스트: `npm test`
 3. 푸시(찌르기/일정 알림)
-   - `npx web-push generate-vapid-keys` → Public Key는 `web/.env`와 Vercel 환경변수 `VITE_VAPID_PUBLIC_KEY`에
+   - `npx web-push generate-vapid-keys` → 공개키/개인키 **둘 다 Supabase secrets에만** 넣는다. 앱은 공개키를 Edge Function에서 받아 쓴다 (양쪽에 따로 두면 어긋나도 모른다)
    - `npx supabase login` → `npx supabase link --project-ref mnqzvqpmmpvvxrhbwvyc`
    - `npx supabase secrets set VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=... VAPID_SUBJECT=mailto:<이메일> CRON_SECRET=<임의 긴 문자열>`
    - `npx supabase functions deploy hyper-endpoint --no-verify-jwt --use-api` (폴더 이름 = 함수 주소. 앱과 cron이 이 이름을 부른다)
