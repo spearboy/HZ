@@ -2,12 +2,12 @@
 
 -- .ics 가져오기: 같은 사람이 같은 일정을 두 번 가져오지 못하게 한다 (NULL은 서로 달라서 직접 만든 일정은 영향 없음)
 alter table public.events
-  add column source text not null default 'manual' check (source in ('manual', 'ics')),
-  add column source_uid text;
-create unique index events_source_dedupe on public.events (couple_id, created_by, source_uid);
+  add column if not exists source text not null default 'manual' check (source in ('manual', 'ics')),
+  add column if not exists source_uid text;
+create unique index if not exists events_source_dedupe on public.events (couple_id, created_by, source_uid);
 
 -- 사진
-create table public.photos (
+create table if not exists public.photos (
   id uuid primary key default gen_random_uuid(),
   couple_id uuid not null references public.couples(id) on delete cascade,
   uploaded_by uuid not null references auth.users(id),
@@ -16,32 +16,47 @@ create table public.photos (
   thumb_path text not null,
   created_at timestamptz not null default now()
 );
-create index photos_couple_date on public.photos (couple_id, photo_date);
+create index if not exists photos_couple_date on public.photos (couple_id, photo_date);
 
 alter table public.photos enable row level security;
+
+drop policy if exists photos_select on public.photos;
 create policy photos_select on public.photos for select to authenticated
   using (couple_id = public.my_couple_id());
+
+drop policy if exists photos_insert on public.photos;
 create policy photos_insert on public.photos for insert to authenticated
   with check (couple_id = public.my_couple_id() and uploaded_by = auth.uid()
     and storage_path like public.my_couple_id()::text || '/%'
     and thumb_path like public.my_couple_id()::text || '/%');
+
+drop policy if exists photos_delete on public.photos;
 create policy photos_delete on public.photos for delete to authenticated
   using (uploaded_by = auth.uid());
 
 -- 사진 버킷: 비공개, JPEG만 (클라이언트가 리사이즈 후 JPEG로 올린다), 10MB 제한
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('photos', 'photos', false, 10485760, array['image/jpeg']);
+values ('photos', 'photos', false, 10485760, array['image/jpeg'])
+on conflict (id) do update
+  set public = excluded.public,
+      file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
 
 -- 경로 첫 폴더가 내 couple_id일 때만 읽기/쓰기, 삭제는 올린 사람만
+drop policy if exists photos_obj_select on storage.objects;
 create policy photos_obj_select on storage.objects for select to authenticated
   using (bucket_id = 'photos' and (storage.foldername(name))[1] = public.my_couple_id()::text);
+
+drop policy if exists photos_obj_insert on storage.objects;
 create policy photos_obj_insert on storage.objects for insert to authenticated
   with check (bucket_id = 'photos' and (storage.foldername(name))[1] = public.my_couple_id()::text);
+
+drop policy if exists photos_obj_delete on storage.objects;
 create policy photos_obj_delete on storage.objects for delete to authenticated
   using (bucket_id = 'photos' and owner_id = auth.uid()::text);
 
 -- 찌르기: 하루 1회는 유니크 제약으로 보장 (KST 날짜 기준)
-create table public.pokes (
+create table if not exists public.pokes (
   id uuid primary key default gen_random_uuid(),
   couple_id uuid not null references public.couples(id) on delete cascade,
   sender_id uuid not null references auth.users(id),
@@ -52,6 +67,8 @@ create table public.pokes (
 );
 
 alter table public.pokes enable row level security;
+
+drop policy if exists pokes_select on public.pokes;
 create policy pokes_select on public.pokes for select to authenticated
   using (sender_id = auth.uid() or receiver_id = auth.uid());
 
@@ -74,7 +91,7 @@ begin
 end $$;
 
 -- Web Push 구독 (브라우저/기기마다 하나)
-create table public.push_subscriptions (
+create table if not exists public.push_subscriptions (
   endpoint text primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
   p256dh text not null,
@@ -83,11 +100,13 @@ create table public.push_subscriptions (
 );
 
 alter table public.push_subscriptions enable row level security;
+
+drop policy if exists push_own on public.push_subscriptions;
 create policy push_own on public.push_subscriptions for all to authenticated
   using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 -- 알림 발송 기록 (중복 방지). 정책 없음 = 서버(service role)만
-create table public.reminder_log (
+create table if not exists public.reminder_log (
   event_id uuid not null references public.events(id) on delete cascade,
   recipient_id uuid not null references auth.users(id) on delete cascade,
   kind text not null check (kind in ('7d', '3d', '1d', '0d')),
@@ -97,6 +116,7 @@ create table public.reminder_log (
 alter table public.reminder_log enable row level security;
 
 -- 오늘(KST) 기준 정확히 7/3/1/0일 뒤 시작하는 일정 x 커플 두 명. 새로 기록된 것만 돌려줘서 중복 발송을 막는다
+-- (다음 마이그레이션에서 반복 일정까지 보도록 다시 정의된다)
 create or replace function public.due_reminders()
 returns table (recipient_id uuid, kind text, title text, start_at timestamptz, all_day boolean)
 language sql security definer
@@ -138,4 +158,17 @@ grant execute on function public.send_poke() to authenticated;
 revoke execute on function public.due_reminders() from public, anon, authenticated;
 grant execute on function public.due_reminders() to service_role;
 
-alter publication supabase_realtime add table public.photos, public.pokes;
+do $$
+declare t text;
+begin
+  -- 셀프호스트 등 supabase_realtime publication 자체가 없을 수도 있다
+  if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then return; end if;
+  foreach t in array array['photos', 'pokes'] loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;

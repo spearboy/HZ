@@ -1,12 +1,16 @@
 import { useState } from 'react'
 import { Box, Button, Dialog, DialogActions, IconButton, ImageList, ImageListItem } from '@mui/material'
-import CloseRounded from '@mui/icons-material/CloseRounded'
+import { XIcon } from '@animateicons/react/lucide'
 import { supabase } from './supabase'
 
 export type Photo = { id: string; photo_date: string; storage_path: string; thumb_path: string; uploaded_by: string; thumbUrl?: string | null }
 export const PHOTO_COLUMNS = 'id,photo_date,storage_path,thumb_path,uploaded_by'
 
-const bucket = () => supabase.storage.from('photos')
+export const bucket = () => supabase.storage.from('photos')
+
+// 비공개 버킷이라 모든 이미지는 서명 URL로만 보인다
+export const signedUrl = async (path: string | null) =>
+  path ? ((await bucket().createSignedUrl(path, 3600)).data?.signedUrl ?? null) : null
 
 // 비공개 버킷이라 썸네일도 서명 URL로만 보인다
 export async function withThumbs(rows: Photo[]): Promise<Photo[]> {
@@ -17,7 +21,7 @@ export async function withThumbs(rows: Photo[]): Promise<Photo[]> {
 
 // 긴 변 기준으로 줄여 JPEG로 만든다. 원본 수 MB → 수백 KB
 // shortcut: HEIC는 브라우저가 디코딩할 수 있을 때만 된다(사파리 O, 크롬 X). 문제가 되면 heic 변환 라이브러리 검토
-async function resize(file: File, max: number): Promise<Blob> {
+export async function resize(file: File, max: number): Promise<Blob> {
   const img = await createImageBitmap(file)
   const scale = Math.min(1, max / Math.max(img.width, img.height))
   const canvas = document.createElement('canvas')
@@ -86,7 +90,7 @@ export function PhotoGrid({ photos, userId, cols = 3, onChanged, onError }: {
         <Box sx={{ position: 'relative', bgcolor: 'black', minHeight: 240, display: 'grid', placeItems: 'center' }}>
           {fullUrl && <img src={fullUrl} alt="원본 사진" style={{ maxWidth: '100%', maxHeight: '75dvh', display: 'block' }} />}
           <IconButton aria-label="닫기" onClick={() => setOpen(null)} sx={{ position: 'absolute', top: 8, right: 8, color: 'white', bgcolor: '#0006' }}>
-            <CloseRounded />
+            <XIcon size={22} />
           </IconButton>
         </Box>
         {open && (

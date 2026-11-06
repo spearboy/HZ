@@ -81,6 +81,55 @@ do $$ begin
   end;
 end $$;
 
+-- 닉네임: 20자 초과/공백만 거부, B는 A의 닉네임을 못 바꾼다
+do $$ begin
+  update public.profiles set display_name = '  혜지  ' where id = auth.uid();
+  if (select display_name from public.profiles where id = auth.uid()) <> '  혜지  ' then
+    raise exception 'FAIL: 닉네임 저장 안 됨';
+  end if;
+  begin
+    update public.profiles set display_name = repeat('가', 21) where id = auth.uid();
+    raise exception 'FAIL: 21자 닉네임이 저장됨';
+  exception when check_violation then null;
+  end;
+  begin
+    update public.profiles set display_name = '   ' where id = auth.uid();
+    raise exception 'FAIL: 공백만 있는 닉네임이 저장됨';
+  exception when check_violation then null;
+  end;
+  update public.profiles set display_name = '남의이름' where id = '00000000-0000-0000-0000-00000000000a';
+  if (select display_name from public.profiles where id = '00000000-0000-0000-0000-00000000000a') = '남의이름' then
+    raise exception 'FAIL: B가 A의 닉네임을 바꿈';
+  end if;
+end $$;
+
+-- 프로필 사진: 확대/위치는 범위 밖이면 거부
+do $$ begin
+  update public.profiles set avatar_path = 'c/avatar/b.jpg', avatar_zoom = 2.5, avatar_x = 30, avatar_y = 70 where id = auth.uid();
+  if (select avatar_zoom from public.profiles where id = auth.uid()) <> 2.5 then raise exception 'FAIL: 아바타 설정 저장 안 됨'; end if;
+  begin
+    update public.profiles set avatar_zoom = 9 where id = auth.uid();
+    raise exception 'FAIL: 범위 밖 확대가 저장됨';
+  exception when check_violation then null;
+  end;
+  begin
+    update public.profiles set avatar_x = -1 where id = auth.uid();
+    raise exception 'FAIL: 범위 밖 위치가 저장됨';
+  exception when check_violation then null;
+  end;
+end $$;
+
+-- 메인 카드 배경: B는 자기 커플 것만 바꿀 수 있고, 허용 안 된 칸은 여전히 막힌다
+do $$ begin
+  update public.couples set cover_path = current_setting('test.couple') || '/cover/x.jpg', cover_zoom = 1.4, cover_x = 40, cover_y = 60;
+  if (select cover_zoom from public.couples) <> 1.4 then raise exception 'FAIL: 배경 설정 저장 안 됨'; end if;
+  begin
+    update public.couples set cover_zoom = 0.2;
+    raise exception 'FAIL: 범위 밖 배경 확대가 저장됨';
+  exception when check_violation then null;
+  end;
+end $$;
+
 -- C: 무관한 사용자
 reset role;
 set local role authenticated;
@@ -196,39 +245,58 @@ do $$ begin
   if (select count(*) from public.push_subscriptions) <> 0 then raise exception 'FAIL: C가 구독을 봄'; end if;
 end $$;
 update public.couples set started_on = '2000-01-01';
+update public.couples set cover_path = 'hack/x.jpg', cover_zoom = 4;
 reset role;
 do $$ begin
   if (select started_on from public.couples where id = current_setting('test.couple')::uuid) is distinct from '2024-05-01' then
     raise exception 'FAIL: C가 남의 사귄 날을 바꿈';
   end if;
+  if (select count(*) from public.couples where cover_path = 'hack/x.jpg') <> 0 then
+    raise exception 'FAIL: C가 남의 배경 사진을 바꿈';
+  end if;
 end $$;
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000c"}';
 
--- 알림: 오늘/내일/7일 뒤 일정은 두 명에게 각 1번만, 2일 뒤 일정은 대상 아님
+-- 알림: '시작 1시간 전'은 59분 뒤에 시작하는 일정이 대상이라 몇 시에 돌려도 결과가 같다.
+-- (당일 아침 9시 알림은 09:00~09:10에만 나가므로 여기서 수를 세지 않는다)
 reset role;
-insert into public.events (couple_id, created_by, title, start_at)
-select current_setting('test.couple')::uuid, '00000000-0000-0000-0000-00000000000a', t, now() + d * interval '1 day'
-from (values ('r0', 0), ('r1', 1), ('r2', 2), ('r7', 7)) v(t, d);
 delete from public.reminder_log;
-do $$ begin
-  -- 테스트 일정 3개(r0, r1, r7) x 2명 = 6. 'B가 수정' 일정(오늘)도 대상이라 +2
-  if (select count(*) from public.due_reminders() where title in ('r0', 'r1', 'r2', 'r7', 'B가 수정')) <> 8 then
-    raise exception 'FAIL: 알림 대상 수가 틀림';
+insert into public.events (couple_id, created_by, title, start_at, all_day)
+values
+  (current_setting('test.couple')::uuid, '00000000-0000-0000-0000-00000000000a', 'n1h', now() + interval '59 minutes', false),
+  (current_setting('test.couple')::uuid, '00000000-0000-0000-0000-00000000000a', 'nallday', now() + interval '59 minutes', true),
+  (current_setting('test.couple')::uuid, '00000000-0000-0000-0000-00000000000a', 'n3h', now() + interval '3 hours', false);
+do $$
+declare n int;
+begin
+  select count(*) into n from public.due_reminders() where title = 'n1h' and kind = '1h';
+  if n <> 2 then raise exception 'FAIL: 1시간 전 알림이 두 명에게 안 감 (%)', n; end if;
+
+  -- 하루 종일 일정과 아직 먼 일정은 1시간 전 대상이 아니다
+  if exists (
+    select 1 from public.reminder_log r join public.events e on e.id = r.event_id
+    where e.title in ('nallday', 'n3h') and r.kind = '1h'
+  ) then
+    raise exception 'FAIL: 대상이 아닌 일정에 1시간 전 알림이 감';
   end if;
+
   if (select count(*) from public.due_reminders()) <> 0 then raise exception 'FAIL: 알림 중복 발송'; end if;
 end $$;
 
--- 매년 반복: 작년 3일 뒤 날짜로 시작한 일정은 올해도 알림, 반복이 작년에 끝난 일정은 알림 없음
-insert into public.events (couple_id, created_by, title, start_at, repeat_yearly, repeat_until_year)
+-- 매년 반복: 작년 이맘때 시작한 반복 일정도 올해 1시간 전 알림, 반복이 작년에 끝난 일정은 알림 없음
+insert into public.events (couple_id, created_by, title, start_at, all_day, repeat_yearly, repeat_until_year)
 values
-  (current_setting('test.couple')::uuid, '00000000-0000-0000-0000-00000000000a', 'y3', now() + interval '3 days' - interval '1 year', true, null),
-  (current_setting('test.couple')::uuid, '00000000-0000-0000-0000-00000000000a', 'yold', now() + interval '3 days' - interval '2 years', true,
+  (current_setting('test.couple')::uuid, '00000000-0000-0000-0000-00000000000a', 'y1h',
+   now() + interval '59 minutes' - interval '1 year', false, true, null),
+  (current_setting('test.couple')::uuid, '00000000-0000-0000-0000-00000000000a', 'yold',
+   now() + interval '59 minutes' - interval '2 years', false, true,
    extract(year from now() at time zone 'Asia/Seoul')::int - 1);
-do $$ begin
-  if (select count(*) from public.due_reminders() where title in ('y3', 'yold')) <> 2 then
-    raise exception 'FAIL: 반복 일정 알림 대상이 틀림';
-  end if;
+do $$
+declare n int;
+begin
+  select count(*) into n from public.due_reminders() where title in ('y1h', 'yold') and kind = '1h';
+  if n <> 2 then raise exception 'FAIL: 반복 일정 알림 대상이 틀림 (%)', n; end if;
 end $$;
 
 -- 종료일이 시작보다 빠르거나, 반복 없이 종료 연도만 있으면 거부

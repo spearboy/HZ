@@ -1,6 +1,7 @@
 export type Event = {
   id: string; title: string; note: string | null; start_at: string; all_day: boolean; created_by: string
   end_date: string | null; repeat_yearly: boolean; repeat_until_year: number | null; dday: boolean
+  end_at: string | null
 }
 // 화면에 그릴 한 번의 발생: 반복이면 그해 날짜로 옮긴 시작/끝(YYYY-MM-DD)
 export type Occ = { ev: Event; first: string; last: string }
@@ -64,3 +65,43 @@ export function coupleDays(startedOn: string, today: string) {
 }
 
 export const dLabel = (left: number) => (left === 0 ? 'D-DAY' : left > 0 ? `D-${left}` : `D+${-left}`)
+
+// 시간표 한 칸: 자정부터 분 단위 시작/끝, 겹치는 것끼리 가로로 나눈 위치(lane/lanes)
+export type Slot = { ev: Event; from: number; to: number; lane: number; lanes: number }
+
+// 겹치는 일정들을 묶어(cluster) 그 안에서만 폭을 나눈다. 안 겹치는 일정은 폭을 그대로 쓴다
+export function layout(items: { ev: Event; from: number; to: number }[]): Slot[] {
+  const sorted = [...items].sort((a, b) => a.from - b.from || a.to - b.to)
+  const out: Slot[] = []
+  let cluster: Slot[] = []
+  let laneEnd: number[] = []
+  let clusterEnd = -1
+
+  const flush = () => {
+    for (const s of cluster) s.lanes = laneEnd.length
+    out.push(...cluster)
+    cluster = []
+    laneEnd = []
+  }
+
+  for (const it of sorted) {
+    if (cluster.length && it.from >= clusterEnd) flush()
+    let lane = laneEnd.findIndex((end) => end <= it.from)
+    if (lane < 0) { lane = laneEnd.length; laneEnd.push(0) }
+    laneEnd[lane] = it.to
+    clusterEnd = cluster.length ? Math.max(clusterEnd, it.to) : it.to
+    cluster.push({ ev: it.ev, from: it.from, to: it.to, lane, lanes: 1 })
+  }
+  flush()
+  return out
+}
+
+// 일정 하나가 그날 차지하는 시간대. 끝 시각이 없으면 1시간으로 본다
+export function slotOf(ev: Event): { from: number; to: number } {
+  const s = new Date(ev.start_at)
+  const from = s.getHours() * 60 + s.getMinutes()
+  if (!ev.end_at) return { from, to: Math.min(from + 60, 24 * 60) }
+  const e = new Date(ev.end_at)
+  const sameDay = ymd(e) === ymd(s)
+  return { from, to: sameDay ? e.getHours() * 60 + e.getMinutes() : 24 * 60 }
+}
