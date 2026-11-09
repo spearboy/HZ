@@ -1,3 +1,4 @@
+import { isEnglish, locale, tr } from './language'
 import { useState } from 'react'
 import { Alert, Box, Button, Checkbox, List, ListItemButton, ListItemIcon, ListItemText, Stack } from '@mui/material'
 import { FileUpIcon } from '@animateicons/react/lucide'
@@ -16,7 +17,7 @@ export default function ImportIcs({ coupleId, userId, onDone }: { coupleId: stri
     const events = parseIcs(await file.text()).filter((e) => e.start >= today).sort((a, b) => +a.start - +b.start)
     setList(events)
     setPicked(new Set(events.map((e) => e.uid)))
-    setMsg(events.length ? '' : '오늘 이후 일정이 없어요.')
+    setMsg(events.length ? '' : tr("오늘 이후 일정이 없어요."))
   }
 
   const save = async () => {
@@ -41,7 +42,7 @@ export default function ImportIcs({ coupleId, userId, onDone }: { coupleId: stri
     <Stack spacing={1.5}>
       {!list?.length && (
         <Button component="label" variant="outlined" startIcon={<FileUpIcon size={18} />}>
-          .ics 파일 선택
+          {tr(".ics 파일 선택")}
           <input type="file" accept=".ics,text/calendar" hidden onChange={(e) => e.target.files?.[0] && open(e.target.files[0])} />
         </Button>
       )}
@@ -53,14 +54,14 @@ export default function ImportIcs({ coupleId, userId, onDone }: { coupleId: stri
                 <ListItemButton key={e.uid} onClick={() => toggle(e.uid)}>
                   <ListItemIcon><Checkbox edge="start" checked={picked.has(e.uid)} tabIndex={-1} disableRipple /></ListItemIcon>
                   <ListItemText primary={e.title}
-                    secondary={`${e.start.toLocaleDateString('ko-KR')} ${e.allDay ? '하루 종일' : e.start.toTimeString().slice(0, 5)}`} />
+                    secondary={`${e.start.toLocaleDateString(locale())} ${e.allDay ? tr('하루 종일') : e.start.toTimeString().slice(0, 5)}`} />
                 </ListItemButton>
               ))}
             </List>
           </Box>
           <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
-            <Button onClick={() => setList(null)}>취소</Button>
-            <Button variant="contained" onClick={save} disabled={!picked.size}>{picked.size}개 가져오기</Button>
+            <Button onClick={() => setList(null)}>{tr("취소")}</Button>
+            <Button variant="contained" onClick={save} disabled={!picked.size}>{isEnglish() ? `Import ${picked.size}` : `${picked.size}개 가져오기`}</Button>
           </Stack>
         </>
       )}

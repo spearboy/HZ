@@ -1,3 +1,4 @@
+import { isEnglish, tr } from './language'
 import { useState } from 'react'
 import { Box, Button, Dialog, DialogActions, IconButton, ImageList, ImageListItem } from '@mui/material'
 import { XIcon } from '@animateicons/react/lucide'
@@ -107,7 +108,7 @@ export function PhotoGrid({ photos, userId, cols = 3, onChanged, onError }: {
   }
 
   const remove = async (p: Photo) => {
-    if (!confirm('이 사진을 삭제할까요?')) return
+    if (!confirm(tr("이 사진을 삭제할까요?"))) return
     // 행을 먼저 지워야 실패해도 화면에 깨진 사진이 남지 않는다. 파일 삭제가 실패하면 고아 파일만 남는다
     const { error } = await supabase.from('photos').delete().eq('id', p.id)
     if (error) return onError(error.message)
@@ -121,24 +122,28 @@ export function PhotoGrid({ photos, userId, cols = 3, onChanged, onError }: {
     <>
       <ImageList cols={cols} gap={6} sx={{ m: 0 }}>
         {photos.map((p) => (
-          <ImageListItem key={p.id} onClick={() => show(p)} sx={{ cursor: 'pointer', borderRadius: 3, overflow: 'hidden', aspectRatio: '1' }}>
-            <img src={p.thumbUrl ?? undefined} alt={`${p.photo_date} 사진`} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <ImageListItem key={p.id} onClick={() => show(p)} sx={{ cursor: 'pointer', borderRadius: 2, overflow: 'hidden', aspectRatio: '1',
+            '& img': { transition: 'transform 300ms cubic-bezier(.2,.8,.2,1)' },
+            '@media (hover: hover)': { '&:hover img': { transform: 'scale(1.04)' } },
+            '&:active img': { transform: 'scale(.97)' },
+            '@media (prefers-reduced-motion: reduce)': { '& img': { transition: 'none' }, '&:hover img, &:active img': { transform: 'none' } } }}>
+            <img src={p.thumbUrl ?? undefined} alt={isEnglish() ? `Photo from ${p.photo_date}` : `${p.photo_date} 사진`} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </ImageListItem>
         ))}
       </ImageList>
 
       <Dialog open={!!open} onClose={() => setOpen(null)} fullWidth maxWidth="md">
         <Box sx={{ position: 'relative', bgcolor: 'black', minHeight: 240, display: 'grid', placeItems: 'center' }}>
-          {fullUrl && <img src={fullUrl} alt="원본 사진" style={{ maxWidth: '100%', maxHeight: '75dvh', display: 'block' }} />}
-          <IconButton aria-label="닫기" onClick={() => setOpen(null)} sx={{ position: 'absolute', top: 8, right: 8, color: 'white', bgcolor: '#0006' }}>
+          {fullUrl && <img src={fullUrl} alt={tr("원본 사진")} style={{ maxWidth: '100%', maxHeight: '75dvh', display: 'block' }} />}
+          <IconButton aria-label={tr("닫기")} onClick={() => setOpen(null)} sx={{ position: 'absolute', top: 8, right: 8, color: 'white', bgcolor: '#0006' }}>
             <XIcon size={22} />
           </IconButton>
         </Box>
         {open && (
           <DialogActions>
-            {open.uploaded_by === userId && <Button color="error" onClick={() => remove(open)}>삭제</Button>}
+            {open.uploaded_by === userId && <Button color="error" onClick={() => remove(open)}>{tr("삭제")}</Button>}
             <Box sx={{ flex: 1 }} />
-            <Button variant="contained" onClick={() => download(open)}>저장</Button>
+            <Button variant="contained" onClick={() => download(open)}>{tr("저장")}</Button>
           </DialogActions>
         )}
       </Dialog>

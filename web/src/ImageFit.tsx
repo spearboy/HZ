@@ -1,3 +1,4 @@
+import { tr } from './language'
 import { useEffect, useState, type CSSProperties } from 'react'
 import { Avatar, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Slider, Stack, Typography } from '@mui/material'
 import { ImageIcon } from '@animateicons/react/lucide'
@@ -8,11 +9,11 @@ import { koError } from './supabase'
 export type Fit = { zoom: number; x: number; y: number }
 export const DEFAULT_FIT: Fit = { zoom: 1, x: 50, y: 50 }
 
-// object-fit:cover가 잘라 주고, object-position이 어디를 보여 줄지, scale이 얼마나 당길지 정한다.
+// object-position은 cover로 잘린 부분을, transform-origin은 확대해 잘린 부분을 조절한다.
 // 부모에 overflow:hidden만 있으면 동그란 프로필이든 넓은 배경이든 같은 코드로 쓴다
 export const fitImg = (f: Fit): CSSProperties => ({
   width: '100%', height: '100%', display: 'block', objectFit: 'cover',
-  objectPosition: `${f.x}% ${f.y}%`, transform: `scale(${f.zoom})`,
+  objectPosition: `${f.x}% ${f.y}%`, transform: `scale(${f.zoom})`, transformOrigin: `${f.x}% ${f.y}%`,
 })
 
 export function FitAvatar({ url, fit, size, bg, fg, label }: {
@@ -35,7 +36,7 @@ export default function ImageFitDialog({ title, url, path, fit, prefix, max, rou
   round?: boolean
   ratio: number                 // 미리보기 비율 (가로/세로)
   onClose: () => void
-  onSave: (v: Fit & { path: string | null }) => void
+  onSave: (v: Fit & { path: string | null }) => Promise<void>
   onError: (m: string) => void
 }) {
   const [file, setFile] = useState<File | null>(null)
@@ -61,19 +62,28 @@ export default function ImageFitDialog({ title, url, path, fit, prefix, max, rou
         next = `${prefix}/${crypto.randomUUID()}.jpg`
         const { error } = await bucket().upload(next, await resize(file, max), { contentType: 'image/jpeg' })
         if (error) throw error
-        if (path) await bucket().remove([path])
       }
-      onSave({ ...cur, path: next })
+      try { await onSave({ ...cur, path: next }) }
+      catch (e) {
+        if (next && next !== path) await bucket().remove([next])
+        throw e
+      }
+      if (path && next !== path) await bucket().remove([path])
     } catch (e) {
-      onError(e instanceof Error ? koError(e) : String(e))
+      onError(e && typeof e === 'object' && 'message' in e ? koError(e as { message: string }) : String(e))
       setBusy(false)
     }
   }
 
   const clear = async () => {
     setBusy(true)
-    if (path) await bucket().remove([path])
-    onSave({ ...DEFAULT_FIT, path: null })
+    try {
+      await onSave({ ...DEFAULT_FIT, path: null })
+      if (path) await bucket().remove([path])
+    } catch (e) {
+      onError(e && typeof e === 'object' && 'message' in e ? koError(e as { message: string }) : String(e))
+      setBusy(false)
+    }
   }
 
   return (
@@ -83,18 +93,19 @@ export default function ImageFitDialog({ title, url, path, fit, prefix, max, rou
         <Box sx={{ aspectRatio: String(ratio), width: round ? 180 : '100%', mx: 'auto', overflow: 'hidden',
           borderRadius: round ? '50%' : 4, bgcolor: 'action.hover', display: 'grid', placeItems: 'center' }}>
           {shown
-            ? <img src={shown} alt="미리보기" style={fitImg(cur)} />
-            : <Typography variant="body2" color="text.secondary">사진 없음</Typography>}
+            ? <img src={shown} alt={tr("미리보기")} style={fitImg(cur)} />
+            : <Typography variant="body2" color="text.secondary">{tr("사진 없음")}</Typography>}
         </Box>
 
         <Button component="label" fullWidth startIcon={<ImageIcon size={18} />} disabled={busy} sx={{ mt: 2 }}>
-          {shown ? '다른 사진 고르기' : '사진 고르기'}
+          {shown ? tr('다른 사진 고르기') : tr("사진 고르기")}
           <input type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])} />
         </Button>
 
         {shown && (
           <Stack spacing={0.5} sx={{ mt: 1 }}>
-            {([['확대', 'zoom', 1, 4, 0.05], ['가로 위치', 'x', 0, 100, 1], ['세로 위치', 'y', 0, 100, 1]] as const).map(([label, key, lo, hi, step]) => (
+            <Typography variant="caption" color="text.secondary">{tr("이동할 여백이 없으면 먼저 확대해 주세요.")}</Typography>
+            {([[tr("확대"), 'zoom', 1, 4, 0.05], [tr("가로 위치"), 'x', 0, 100, 1], [tr("세로 위치"), 'y', 0, 100, 1]] as const).map(([label, key, lo, hi, step]) => (
               <Box key={key}>
                 <Typography variant="caption" color="text.secondary">{label}</Typography>
                 <Slider size="small" value={cur[key]} min={lo} max={hi} step={step} disabled={busy}
@@ -105,10 +116,10 @@ export default function ImageFitDialog({ title, url, path, fit, prefix, max, rou
         )}
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        {path && <Button color="error" disabled={busy} onClick={clear}>사진 지우기</Button>}
+        {path && <Button color="error" disabled={busy} onClick={clear}>{tr("사진 지우기")}</Button>}
         <Box sx={{ flex: 1 }} />
-        <Button onClick={onClose} disabled={busy}>취소</Button>
-        <Button variant="contained" onClick={save} disabled={busy || !shown}>{busy ? '저장 중…' : '저장'}</Button>
+        <Button onClick={onClose} disabled={busy}>{tr("취소")}</Button>
+        <Button variant="contained" onClick={save} disabled={busy || !shown}>{busy ? tr('저장 중…') : tr("저장")}</Button>
       </DialogActions>
     </Dialog>
   )
