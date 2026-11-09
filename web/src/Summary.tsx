@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import { isEnglish, locale, tr } from './language'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Box, Button, Card, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Stack, TextField, Typography, useTheme,
 } from '@mui/material'
 import { HeartIcon, PencilIcon } from '@animateicons/react/lucide'
 import { koError, supabase } from './supabase'
 import { signedUrl } from './Photos'
-import { DEFAULT_FIT, FitAvatar, fitImg, type Fit } from './ImageFit'
+import ImageFitDialog, { DEFAULT_FIT, FitAvatar, fitImg, type Fit } from './ImageFit'
 import { avatarFit } from './Home'
 import WeatherCard, { WeatherFx } from './WeatherCard'
 import GlassFx, { fxOn } from './GlassFx'
@@ -15,25 +16,29 @@ import { ddayEvents, eventsInRange } from './events'
 import { holidayName } from './holidays'
 import { SummarySkeleton } from './Skeletons'
 import type { TabProps } from './Home'
+import { poke } from './poke'
 
 // 홈의 '이번 주'는 월요일에 시작해 일요일에 끝난다 (캘린더 탭의 월 그리드는 일요일 시작 그대로)
 const WEEK = ['월', '화', '수', '목', '금', '토', '일']
 const SAT = 5
 const SUN = 6
-const md = (k: string) => `${+k.slice(5, 7)}월 ${+k.slice(8)}일`
+const md = (k: string) => new Date(`${k}T00:00`).toLocaleDateString(locale(), { month: 'long', day: 'numeric' })
 // Date.getDay()는 일요일이 0이라, 월요일부터인 WEEK에 넣으려면 한 칸 돌린다
-const dow = (k: string) => WEEK[(new Date(`${k}T00:00`).getDay() + 6) % 7]
+const dow = (k: string) => new Date(`${k}T00:00`).toLocaleDateString(locale(), { weekday: 'short' })
 
 export default function Summary({ coupleId, userId, version, notify, profiles, colorOf }: TabProps) {
   const { palette } = useTheme()
   const [startedOn, setStartedOn] = useState<string | null | undefined>(undefined)
   const [week, setWeek] = useState<Event[]>([])
   const [ddays, setDdays] = useState<Event[]>([])
-  const [cover, setCover] = useState<{ url: string | null; fit: Fit }>({ url: null, fit: DEFAULT_FIT })
+  const [cover, setCover] = useState<{ url: string | null; path: string | null; fit: Fit }>({ url: null, path: null, fit: DEFAULT_FIT })
   const [weather, setWeather] = useState<Weather | null | undefined>(undefined)
   // 설정에서 끄면 효과를 아예 안 그린다. 탭을 옮기면 다시 읽히므로 따로 전파할 필요가 없다
   const [fx] = useState(fxOn)
   const [editing, setEditing] = useState(false)
+  const [pickingCover, setPickingCover] = useState(false)
+  const [coverRatio, setCoverRatio] = useState(16 / 9)
+  const cardRef = useRef<HTMLDivElement>(null)
 
   const now = new Date()
   const today = ymd(now)
@@ -53,7 +58,7 @@ export default function Summary({ coupleId, userId, version, notify, profiles, c
     setStartedOn(c.data.started_on)
     setWeek(w.data)
     setDdays(d.data)
-    setCover({ url: await signedUrl(c.data.cover_path), fit: { zoom: c.data.cover_zoom, x: c.data.cover_x, y: c.data.cover_y } })
+    setCover({ url: await signedUrl(c.data.cover_path), path: c.data.cover_path, fit: { zoom: c.data.cover_zoom, x: c.data.cover_x, y: c.data.cover_y } })
   }, [coupleId, from, to, fromDay, notify])
 
   useEffect(() => { load() }, [load, version])
@@ -65,6 +70,21 @@ export default function Summary({ coupleId, userId, version, notify, profiles, c
     if (error) return notify(koError(error))
     setEditing(false)
     load()
+  }
+
+  const saveCover = async (v: Fit & { path: string | null }) => {
+    const { error } = await supabase.from('couples')
+      .update({ cover_path: v.path, cover_zoom: v.zoom, cover_x: v.x, cover_y: v.y }).eq('id', coupleId)
+    if (error) throw error
+    setPickingCover(false)
+    load()
+  }
+
+  const editCover = () => {
+    const card = cardRef.current
+    if (card && card.clientHeight) setCoverRatio(card.clientWidth / card.clientHeight)
+    setEditing(false)
+    setPickingCover(true)
   }
 
   if (startedOn === undefined) return <SummarySkeleton />
@@ -81,12 +101,15 @@ export default function Summary({ coupleId, userId, version, notify, profiles, c
 
   return (
     <Box sx={{ p: 2, pb: 12 }}>
-      <Typography variant="h5" sx={{ mb: 2 }}>홈</Typography>
+      <Stack direction="row" sx={{ alignItems: 'center', mb: 2.5, pt: 1 }}>
+        <Box sx={{ flex: 1 }}><Typography variant="caption" color="text.secondary" sx={{ letterSpacing: '.12em', fontWeight: 700 }}>MORO</Typography>
+          <Typography variant="h5">{tr("홈")}</Typography></Box>
+        <Button variant="outlined" startIcon={<HeartIcon size={17} />} onClick={() => poke(notify)}>{tr("콕 찌르기")}</Button>
+      </Stack>
 
-      {/* 커플 디데이 (배경 사진은 설정 > 메인 카드 배경에서 바꾼다) */}
-      <Card sx={{ mb: 3, border: 0, position: 'relative', overflow: 'hidden', minHeight: 176,
-        color: cover.url ? '#fff' : 'primary.contrastText',
-        background: 'linear-gradient(135deg, var(--mui-palette-primary-main), var(--mui-palette-secondary-main))' }}>
+      {/* 커플 디데이 */}
+      <Card ref={cardRef} sx={{ mb: 3, border: 0, position: 'relative', overflow: 'hidden', minHeight: 196,
+        color: '#fff', background: 'linear-gradient(125deg, #29233f 0%, #514574 56%, #596a9b 100%)' }}>
         {cover.url && (
           <>
             <Box sx={{ position: 'absolute', inset: 0 }}><img src={cover.url} alt="" style={fitImg(cover.fit)} /></Box>
@@ -103,25 +126,25 @@ export default function Summary({ coupleId, userId, version, notify, profiles, c
               {i === 1 && <Box sx={{ mr: 0.25, lineHeight: 0 }}><HeartIcon size={16} /></Box>}
               <FitAvatar url={p.avatarUrl} fit={avatarFit(p)} size={32} bg={colorOf(p.id)}
                 fg={palette.getContrastText(colorOf(p.id))} label={p.display_name ?? '?'} />
-              <Typography variant="body2" noWrap sx={{ fontWeight: 700, maxWidth: 78 }}>{p.display_name ?? '이름 없음'}</Typography>
+              <Typography variant="body2" noWrap sx={{ fontWeight: 700, maxWidth: 78 }}>{p.display_name ?? tr("이름 없음")}</Typography>
             </Stack>
           ))}
           <Box sx={{ flex: 1 }} />
-          {startedOn && <IconButton aria-label="사귄 날 바꾸기" size="small" sx={{ color: 'inherit', pointerEvents: 'auto' }} onClick={() => setEditing(true)}><PencilIcon size={18} /></IconButton>}
+          <IconButton aria-label={tr("홈 카드 수정")} size="small" sx={{ color: 'inherit', pointerEvents: 'auto' }} onClick={() => setEditing(true)}><PencilIcon size={18} /></IconButton>
         </Stack>
         {together ? (
           <>
-            <Typography variant="body2" sx={{ opacity: 0.85 }}>함께한 지</Typography>
-            <Typography sx={{ fontSize: 40, fontWeight: 800, lineHeight: 1.1 }}>{together.n.toLocaleString()}일</Typography>
+            <Typography variant="body2" sx={{ opacity: 0.85 }}>{tr("함께한 지")}</Typography>
+            <Typography sx={{ fontSize: 38, fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1.15 }}>{together.n.toLocaleString(locale())}{isEnglish() ? ' days' : '일'}</Typography>
             <Stack direction="row" spacing={1} sx={{ mt: 1.5, flexWrap: 'wrap', rowGap: 1 }}>
-              <Chip size="small" label={`${together.hundred.n}일 ${dLabel(together.hundred.left)}`} sx={{ bgcolor: '#ffffff40', color: 'inherit' }} />
-              <Chip size="small" label={`${together.anniversary.years}주년 ${dLabel(together.anniversary.left)}`} sx={{ bgcolor: '#ffffff40', color: 'inherit' }} />
+              <Chip size="small" label={`${together.hundred.n}${isEnglish() ? ' days' : '일'} ${dLabel(together.hundred.left)}`} sx={{ bgcolor: '#ffffff24', color: 'inherit' }} />
+              <Chip size="small" label={`${together.anniversary.years}${isEnglish() ? '-year anniversary' : '주년'} ${dLabel(together.anniversary.left)}`} sx={{ bgcolor: '#ffffff24', color: 'inherit' }} />
             </Stack>
           </>
         ) : startedOn === null && (
           <>
-            <Typography sx={{ fontWeight: 700, mb: 1 }}>사귄 날을 알려 주세요</Typography>
-            <Button variant="contained" onClick={() => setEditing(true)} sx={{ bgcolor: '#fff', color: 'primary.main', pointerEvents: 'auto' }}>사귄 날 설정</Button>
+            <Typography sx={{ fontWeight: 700, mb: 1 }}>{tr("사귄 날을 알려 주세요")}</Typography>
+            <Button variant="contained" onClick={() => setEditing(true)} sx={{ bgcolor: '#fff', color: 'primary.main', pointerEvents: 'auto' }}>{tr("사귄 날 설정")}</Button>
           </>
         )}
         </Box>
@@ -130,7 +153,7 @@ export default function Summary({ coupleId, userId, version, notify, profiles, c
       <WeatherCard w={weather} />
 
       {/* 일정 디데이 */}
-      <Typography component="h2" sx={{ fontWeight: 700, mb: 1 }}>디데이</Typography>
+      <Typography component="h2" sx={{ fontWeight: 700, mb: 1 }}>{tr("디데이")}</Typography>
       <Stack spacing={1} sx={{ mb: 3 }}>
         {upcoming.map(({ ev, on }) => {
           const left = dayDiff(today, on)
@@ -143,29 +166,29 @@ export default function Summary({ coupleId, userId, version, notify, profiles, c
                 </Box>
                 <Box sx={{ minWidth: 0 }}>
                   <Typography sx={{ fontWeight: 700 }} noWrap>{ev.title}</Typography>
-                  <Typography variant="caption" color="text.secondary">{md(on)} {dow(on)}요일</Typography>
+                  <Typography variant="caption" color="text.secondary">{md(on)} {dow(on)}</Typography>
                 </Box>
               </Stack>
             </Card>
           )
         })}
         {!upcoming.length && (
-          <Typography variant="body2" color="text.secondary">일정을 만들 때 '홈에 디데이로 표시'를 켜면 여기에 나와요.</Typography>
+          <Typography variant="body2" color="text.secondary">{tr("일정을 만들 때 '홈에 디데이로 표시'를 켜면 여기에 나와요.")}</Typography>
         )}
       </Stack>
 
       {/* 이번 주 */}
-      <Typography component="h2" sx={{ fontWeight: 700, mb: 1 }}>이번 주</Typography>
+      <Typography component="h2" sx={{ fontWeight: 700, mb: 1 }}>{tr("이번 주")}</Typography>
       <Card>
         {days.map((k, i) => {
           const list = byDay.get(k) ?? []
-          const hol = holidayName(k)
+          const hol = tr(holidayName(k) ?? '')
           const isToday = k === today
           return (
             <Stack key={k} direction="row" spacing={1.5} sx={{ px: 1.5, py: 1.25, alignItems: 'flex-start',
               borderTop: i ? 1 : 0, borderColor: 'divider', bgcolor: isToday ? 'action.hover' : 'transparent', opacity: k < today ? 0.5 : 1 }}>
               <Box sx={{ width: 40, textAlign: 'center', flexShrink: 0 }}>
-                <Typography variant="caption" sx={{ color: hol || i === SUN ? 'error.main' : i === SAT ? 'info.main' : 'text.secondary', fontWeight: 600 }}>{WEEK[i]}</Typography>
+                <Typography variant="caption" sx={{ color: hol || i === SUN ? 'error.main' : i === SAT ? 'info.main' : 'text.secondary', fontWeight: 600 }}>{isEnglish() ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i] : WEEK[i]}</Typography>
                 <Typography sx={{ fontWeight: isToday ? 800 : 600, lineHeight: 1.2,
                   color: isToday ? 'primary.main' : hol ? 'error.main' : 'text.primary' }}>{+k.slice(8)}</Typography>
               </Box>
@@ -175,33 +198,36 @@ export default function Summary({ coupleId, userId, version, notify, profiles, c
                   <Stack key={ev.id} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                     <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: colorOf(ev.created_by), flexShrink: 0 }} />
                     <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>{ev.title}</Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>{ev.all_day ? '종일' : hm(new Date(ev.start_at))}</Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>{ev.all_day ? tr('종일') : hm(new Date(ev.start_at))}</Typography>
                   </Stack>
                 ))}
-                {!list.length && !hol && <Typography variant="body2" color="text.disabled">일정 없음</Typography>}
+                {!list.length && !hol && <Typography variant="body2" color="text.disabled">{tr("일정 없음")}</Typography>}
               </Stack>
             </Stack>
           )
         })}
       </Card>
 
-      {editing && <StartDialog value={startedOn ?? ''} onClose={() => setEditing(false)} onSave={saveStart} />}
+      {editing && <StartDialog value={startedOn ?? ''} onClose={() => setEditing(false)} onSave={saveStart} onEditCover={editCover} />}
+      {pickingCover && <ImageFitDialog title={tr("메인 카드 배경")} ratio={coverRatio} max={1600} prefix={`${coupleId}/cover`}
+        url={cover.url} path={cover.path} fit={cover.fit} onClose={() => setPickingCover(false)} onSave={saveCover} onError={notify} />}
     </Box>
   )
 }
 
-function StartDialog({ value, onClose, onSave }: { value: string; onClose: () => void; onSave: (v: string) => void }) {
+function StartDialog({ value, onClose, onSave, onEditCover }: { value: string; onClose: () => void; onSave: (v: string) => void; onEditCover: () => void }) {
   const [v, setV] = useState(value)
   return (
     <Dialog open onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>사귄 날</DialogTitle>
+      <DialogTitle>{tr("홈 카드 수정")}</DialogTitle>
       <DialogContent>
-        <TextField type="date" label="날짜" value={v} onChange={(e) => setV(e.target.value)} sx={{ mt: 1 }}
+        <Button fullWidth variant="outlined" onClick={onEditCover} sx={{ mb: 2 }}>{tr("배경 사진 변경 · 위치 조정")}</Button>
+        <TextField type="date" label={tr("날짜")} value={v} onChange={(e) => setV(e.target.value)} sx={{ mt: 1 }}
           slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: ymd(new Date()) } }} />
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose}>취소</Button>
-        <Button variant="contained" disabled={!v} onClick={() => onSave(v)}>저장</Button>
+        <Button onClick={onClose}>{tr("취소")}</Button>
+        <Button variant="contained" disabled={!v} onClick={() => onSave(v)}>{tr("저장")}</Button>
       </DialogActions>
     </Dialog>
   )

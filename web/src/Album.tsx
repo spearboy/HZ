@@ -1,3 +1,4 @@
+import { isEnglish, locale, tr } from './language'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Box, Stack, Typography } from '@mui/material'
 import { ImageIcon } from '@animateicons/react/lucide'
@@ -54,17 +55,17 @@ export default function Album({ coupleId, userId, version, notify }: TabProps) {
 
   return (
     <Box sx={{ p: 2 }}>
-      <Typography variant="h5" sx={{ mb: 2 }}>앨범</Typography>
+      <Typography variant="h5" sx={{ mb: 2 }}>{tr("앨범")}</Typography>
       {photos?.length === 0 && (
         <Stack spacing={1} sx={{ alignItems: 'center', py: 8, color: 'text.secondary' }}>
           <ImageIcon size={48} />
-          <Typography>아직 사진이 없어요. 캘린더에서 날짜를 골라 올려 보세요.</Typography>
+          <Typography>{tr("아직 사진이 없어요. 캘린더에서 날짜를 골라 올려 보세요.")}</Typography>
         </Stack>
       )}
       <Stack spacing={3}>
         {[...months].map(([ym, list]) => (
           <Box key={ym}>
-            <Typography sx={{ fontWeight: 700, mb: 1 }}>{ym.slice(0, 4)}년 {+ym.slice(5)}월 <Typography component="span" color="text.secondary">· {list.length}장</Typography></Typography>
+            <Typography sx={{ fontWeight: 700, mb: 1 }}>{new Date(`${ym}-01T00:00`).toLocaleDateString(locale(), { year: 'numeric', month: 'long' })} <Typography component="span" color="text.secondary">· {list.length}{isEnglish() ? ' photos' : '장'}</Typography></Typography>
             <PhotoGrid photos={list} userId={userId} onChanged={() => load(false)} onError={notify} />
           </Box>
         ))}

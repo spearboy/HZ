@@ -18,6 +18,10 @@ assert.deepEqual(range(expand(leap, [2025, 2028])), ['2028-02-29~2028-02-29'])
 // 날짜별 묶기: 기간 일정은 범위 안 날짜에만
 const byDay = groupByDay([{ ...base, end_date: '2025-01-02' }], '2025-01-01', '2025-01-31')
 assert.deepEqual([...byDay.keys()], ['2025-01-01', '2025-01-02'])
+const longRange = groupByDay([{ ...base, end_date: '2035-01-01' }], '2025-01-01', '2025-01-03')
+assert.deepEqual([...longRange.keys()], ['2025-01-01', '2025-01-02', '2025-01-03'])
+assert.equal(longRange.get('2025-01-01')?.[0].first, '2024-12-30')
+assert.equal(longRange.get('2025-01-03')?.[0].last, '2035-01-01')
 
 // 다음 시작일: 매년 반복은 올해 지났으면 내년, 지난 일회성은 null
 assert.equal(nextStart({ ...base, repeat_yearly: true }, '2025-12-31'), '2026-12-30')

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { isEnglish } from './language'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -26,4 +27,4 @@ const messages: Record<string, string> = {
   'Failed to send a request to the Edge Function': '서버 함수(notify)에 연결하지 못했어요. 배포 상태를 확인하세요.',
   'The resource already exists': '같은 사진이 이미 있어요.',
 }
-export const koError = (e: { message: string }) => messages[e.message] ?? e.message
+export const koError = (e: { message: string }) => isEnglish() ? e.message : messages[e.message] ?? e.message

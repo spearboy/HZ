@@ -4,6 +4,7 @@ import {
 } from '@animateicons/react/lucide'
 import { keyframes } from '@emotion/react'
 import { weatherFx, weatherText, type Weather } from './weather'
+import { isEnglish, tr } from './language'
 
 const icon = (code: number) => {
   if (code === 0) return SunIcon
@@ -52,14 +53,14 @@ export default function WeatherCard({ w }: { w: Weather | null | undefined }) {
         <Box sx={{ minWidth: 0 }}>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline' }}>
             <Typography sx={{ fontSize: 24, fontWeight: 800, lineHeight: 1.1 }}>{w.temp}°</Typography>
-            <Typography variant="body2" color="text.secondary" noWrap>서울 · {weatherText(w.code)}</Typography>
+            <Typography variant="body2" color="text.secondary" noWrap>{isEnglish() ? 'Seoul' : '서울'} · {tr(weatherText(w.code))}</Typography>
           </Stack>
-          <Typography variant="caption" color="text.secondary">최고 {w.max}° · 최저 {w.min}°</Typography>
+          <Typography variant="caption" color="text.secondary">{isEnglish() ? 'High' : '최고'} {w.max}° · {isEnglish() ? 'Low' : '최저'} {w.min}°</Typography>
         </Box>
         <Box sx={{ flex: 1 }} />
         <Stack sx={{ alignItems: 'center', color: w.pop >= 60 ? 'primary.main' : 'text.secondary', flexShrink: 0, minWidth: 54 }}>
           <DropletIcon size={18} />
-          <Typography variant="caption" sx={{ fontWeight: 700 }}>강수 {w.pop}%</Typography>
+          <Typography variant="caption" sx={{ fontWeight: 700 }}>{isEnglish() ? 'Rain' : '강수'} {w.pop}%</Typography>
         </Stack>
       </Stack>
     </Card>

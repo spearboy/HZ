@@ -1,3 +1,4 @@
+import { tr } from './language'
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { BottomNavigation, BottomNavigationAction, Box, Paper, Snackbar } from '@mui/material'
 import { CalendarDaysIcon, HouseIcon, ImageIcon, SettingsIcon } from '@animateicons/react/lucide'
@@ -13,7 +14,7 @@ const Calendar = lazy(() => import('./Calendar'))
 const Album = lazy(() => import('./Album'))
 const Settings = lazy(() => import('./Settings'))
 
-const fadeIn = keyframes`from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none }`
+const fadeIn = keyframes`from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none }`
 
 const TABS = [
   { label: '홈', Icon: makeIcon(HouseIcon) },
@@ -61,7 +62,7 @@ export default function Home({ coupleId, userId, onLeft }: { coupleId: string; u
       .on('postgres_changes', { event: '*', schema: 'public', table: 'photos', filter: `couple_id=eq.${coupleId}` }, bump)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, bump)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'couples', filter: `id=eq.${coupleId}` }, bump)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pokes', filter: `receiver_id=eq.${userId}` }, () => setToast('콕! 상대가 찔렀어요 👉'))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pokes', filter: `receiver_id=eq.${userId}` }, () => setToast(tr('콕! 상대가 찔렀어요 👉')))
       .subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [coupleId, userId])
@@ -72,7 +73,7 @@ export default function Home({ coupleId, userId, onLeft }: { coupleId: string; u
   return (
     <Box sx={{ minHeight: '100dvh', pb: 'calc(72px + env(safe-area-inset-bottom))', bgcolor: 'background.default' }}>
       <Box key={tab} sx={{ maxWidth: 640, mx: 'auto',
-        animation: `${fadeIn} .22s ease-out`,
+        animation: `${fadeIn} .32s cubic-bezier(.2,.8,.2,1)`,
         '@media (prefers-reduced-motion: reduce)': { animation: 'none' } }}>
         <Suspense fallback={SKELETON[tab]}>
           {tab === 0 && <Summary {...props} />}
@@ -83,10 +84,13 @@ export default function Home({ coupleId, userId, onLeft }: { coupleId: string; u
       </Box>
 
       <Paper elevation={0} sx={{ position: 'fixed', left: 0, right: 0, bottom: 0, borderRadius: 0, borderTop: 1, borderColor: 'divider',
-        pb: 'env(safe-area-inset-bottom)', backdropFilter: 'blur(12px)', bgcolor: 'color-mix(in srgb, var(--mui-palette-background-paper) 85%, transparent)' }}>
-        <BottomNavigation showLabels value={tab} onChange={(_, v) => setTab(v)} sx={{ bgcolor: 'transparent', maxWidth: 640, mx: 'auto' }}>
+        pb: 'env(safe-area-inset-bottom)', bgcolor: 'background.paper' }}>
+        <BottomNavigation showLabels value={tab} onChange={(_, v) => setTab(v)} sx={{ bgcolor: 'transparent', maxWidth: 640, mx: 'auto', height: 68,
+          '& .MuiBottomNavigationAction-root': { minWidth: 0, gap: 0.5, color: 'text.secondary' },
+          '& .MuiBottomNavigationAction-label': { fontSize: 11, fontWeight: 600 },
+          '& .Mui-selected .MuiBottomNavigationAction-label': { fontSize: 11 } }}>
           {TABS.map(({ label, Icon }, i) => (
-            <BottomNavigationAction key={label} label={label} icon={<TabIcon Icon={Icon} active={tab === i} />} />
+            <BottomNavigationAction key={label} label={tr(label)} icon={<TabIcon Icon={Icon} active={tab === i} />} />
           ))}
         </BottomNavigation>
       </Paper>
@@ -100,6 +104,9 @@ export default function Home({ coupleId, userId, onLeft }: { coupleId: string; u
 // 탭이 선택되는 순간 그 아이콘만 한 번 움직인다
 function TabIcon({ Icon, active }: { Icon: (typeof TABS)[number]['Icon']; active: boolean }) {
   const ref = useRef<Playable>(null)
-  useEffect(() => { if (active) ref.current?.play() }, [active])
-  return <Icon ref={ref} size={23} />
+  useEffect(() => { if (active && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) ref.current?.play() }, [active])
+  return <Box sx={{ width: 46, height: 28, borderRadius: 3, display: 'grid', placeItems: 'center',
+    bgcolor: active ? 'color-mix(in srgb, var(--mui-palette-primary-main) 12%, transparent)' : 'transparent',
+    transition: 'background-color 200ms ease, transform 260ms cubic-bezier(.2,.8,.2,1)', transform: active ? 'scale(1)' : 'scale(.94)',
+    '@media (prefers-reduced-motion: reduce)': { transition: 'none', transform: 'none' } }}><Icon ref={ref} size={22} /></Box>
 }

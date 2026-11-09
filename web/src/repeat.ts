@@ -32,10 +32,15 @@ export function groupByDay(events: Event[], fromDay: string, toDay: string) {
   const years = [...new Set([y0 - 1, y0, +toDay.slice(0, 4)])]
   const byDay = new Map<string, Occ[]>()
   for (const o of events.flatMap((ev) => expand(ev, years))) {
-    const [y, m, d] = o.first.split('-').map(Number)
-    for (let i = 0; i <= dayDiff(o.first, o.last); i++) {
+    const first = o.first < fromDay ? fromDay : o.first
+    const last = o.last > toDay ? toDay : o.last
+    if (first > last) continue
+    const [y, m, d] = first.split('-').map(Number)
+    for (let i = 0, length = dayDiff(first, last); i <= length; i++) {
       const k = ymd(new Date(y, m - 1, d + i))
-      if (k >= fromDay && k <= toDay) byDay.set(k, [...(byDay.get(k) ?? []), o])
+      const list = byDay.get(k)
+      if (list) list.push(o)
+      else byDay.set(k, [o])
     }
   }
   const time = (o: Occ) => (o.ev.all_day ? '' : hm(new Date(o.ev.start_at)))
