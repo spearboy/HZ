@@ -1,11 +1,11 @@
 import { tr } from './language'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Box, Button, ButtonBase, Card, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
   List, ListItem, ListItemAvatar, ListItemButton, ListItemIcon, ListItemText, Switch, TextField, Typography, useTheme,
 } from '@mui/material'
 import {
-  BellIcon, CameraIcon, CheckIcon, CalendarPlusIcon, DropletIcon, ImageIcon, LogOutIcon, UnlinkIcon,
+  BellIcon, CameraIcon, CheckIcon, CalendarPlusIcon, ChevronRightIcon, DropletIcon, ImageIcon, LogOutIcon, UnlinkIcon,
 } from '@animateicons/react/lucide'
 import { auth, koError, supabase } from './supabase'
 import { enablePush, pushEnabled, pushSupported } from './push'
@@ -18,7 +18,7 @@ import { isEnglish, useLanguage } from './language'
 
 const PALETTE = ['#ff6b8b', '#ff7a59', '#f59f00', '#40c057', '#12b886', '#15aabf', '#5b8def', '#7950f2', '#be4bdb', '#868e96']
 
-export default function Settings({ coupleId, userId, notify, profiles, colorOf, reloadProfiles, onLeft }: TabProps) {
+export default function Settings({ coupleId, userId, active, coupleVersion, notify, profiles, colorOf, reloadProfiles, onLeft }: TabProps) {
   const { palette } = useTheme()
   const { language, setLanguage } = useLanguage()
   const [leaving, setLeaving] = useState(false)
@@ -27,6 +27,8 @@ export default function Settings({ coupleId, userId, notify, profiles, colorOf, 
   const [picking, setPicking] = useState<'avatar' | 'cover' | null>(null)
   const [fx, setFx] = useState(fxOn)
   const [cover, setCover] = useState<{ url: string | null; path: string | null; fit: Fit }>({ url: null, path: null, fit: DEFAULT_FIT })
+  const lastCoupleVersion = useRef(-1)
+  const coverFetchedAt = useRef(0)
 
   useEffect(() => {
     pushEnabled().then(setPush)
@@ -36,8 +38,14 @@ export default function Settings({ coupleId, userId, notify, profiles, colorOf, 
     const { data } = await supabase.from('couples').select('cover_path,cover_zoom,cover_x,cover_y').eq('id', coupleId).single()
     if (!data) return
     setCover({ url: await signedUrl(data.cover_path), path: data.cover_path, fit: { zoom: data.cover_zoom, x: data.cover_x, y: data.cover_y } })
+    coverFetchedAt.current = Date.now()
   }, [coupleId])
-  useEffect(() => { loadCover() }, [loadCover])
+  useEffect(() => {
+    if (active && (lastCoupleVersion.current !== coupleVersion || (coverFetchedAt.current > 0 && Date.now() - coverFetchedAt.current > 60_000))) {
+      lastCoupleVersion.current = coupleVersion
+      loadCover()
+    }
+  }, [active, coupleVersion, loadCover])
 
   const turnOnPush = async () => {
     try { await enablePush(userId); setPush(true); notify(tr("알림을 켰어요")) }
@@ -86,89 +94,104 @@ export default function Settings({ coupleId, userId, notify, profiles, colorOf, 
   }
 
   return (
-    <Box sx={{ p: 2 }}>
-      <Typography variant="h5" sx={{ mb: 2 }}>{tr("설정")}</Typography>
+    <Box sx={{ px: 2, pt: 3, pb: 4 }}>
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '.12em' }}>MORO</Typography>
+        <Typography variant="h5">{tr('설정')}</Typography>
+      </Box>
 
-      <Card sx={{ mb: 2, p: 2 }}>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>언어 / Language</Typography>
-        <Box role="radiogroup" aria-label="언어 / Language" sx={{ display: 'flex', gap: 1 }}>
-          {(['ko', 'en'] as const).map((id) => (
-            <Button key={id} role="radio" aria-checked={language === id} variant={language === id ? 'contained' : 'outlined'}
-              onClick={() => setLanguage(id)}>{id === 'ko' ? '한국어' : 'English'}</Button>
-          ))}
-        </Box>
-      </Card>
-
-      <Card sx={{ mb: 2 }}>
-        <List>
-          {[me, partner].map((p, i) => p && (
-            <ListItem key={p.id}
-              secondaryAction={i === 0 && (
-                <Button size="small" startIcon={<CameraIcon size={17} />} onClick={() => setPicking('avatar')}>
-                  {p.avatar_path ? tr('사진 바꾸기') : tr("사진 넣기")}
-                </Button>
-              )}>
-              <ListItemAvatar>
-                <FitAvatar url={p.avatarUrl} fit={avatarFit(p)} size={40} bg={colorOf(p.id)}
-                  fg={palette.getContrastText(colorOf(p.id))} label={p.display_name ?? '?'} />
-              </ListItemAvatar>
-              <ListItemText primary={p.display_name ?? tr("이름 없음")} secondary={i ? tr('상대') : tr("나")} />
-            </ListItem>
-          ))}
-        </List>
-        <Box sx={{ px: 2, pb: 2 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{tr("내 이름")}</Typography>
-          <NameField value={me?.display_name ?? ''} onSave={saveName} />
-        </Box>
-        <Box sx={{ px: 2, pb: 2 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{tr("내 일정 색상")}</Typography>
-          <Box role="radiogroup" aria-label={tr("내 일정 색상")} sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.25 }}>
-            {PALETTE.map((c) => {
-              const on = c === myColor
-              return (
-                <ButtonBase key={c} role="radio" aria-checked={on} aria-label={`색상 ${c}`} onClick={() => pickColor(c)}
-                  sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: c, color: palette.getContrastText(c),
-                    boxShadow: on ? `0 0 0 3px var(--mui-palette-background-paper), 0 0 0 5px ${c}` : 'none', transition: 'box-shadow .15s' }}>
-                  {on && <CheckIcon size={18} />}
-                </ButtonBase>
-              )
-            })}
+      <SettingsSection title={isEnglish() ? 'Our profiles' : '우리의 프로필'}>
+        <Card>
+          <List disablePadding>
+            {[me, partner].map((p, i) => p && (
+              <ListItem key={p.id} sx={{ px: 2, py: 1.5, gap: 1, borderBottom: i === 0 && partner ? 1 : 0, borderColor: 'divider' }}>
+                <ListItemAvatar sx={{ minWidth: 48 }}>
+                  <FitAvatar url={p.avatarUrl} fit={avatarFit(p)} size={40} bg={colorOf(p.id)}
+                    fg={palette.getContrastText(colorOf(p.id))} label={p.display_name ?? '?'} />
+                </ListItemAvatar>
+                <ListItemText sx={{ minWidth: 0, my: 0 }} primary={p.display_name ?? tr('이름 없음')}
+                  slotProps={{ primary: { noWrap: true, sx: { fontWeight: 700 } } }} secondary={i ? tr('상대') : tr('나')} />
+                {i === 0 && <Button size="small" startIcon={<CameraIcon size={16} />} onClick={() => setPicking('avatar')}
+                  sx={{ flexShrink: 0, px: 1 }}>{p.avatar_path ? tr('사진 바꾸기') : tr('사진 넣기')}</Button>}
+              </ListItem>
+            ))}
+          </List>
+          <Box sx={{ px: 2, pt: 1.5, pb: 2, borderTop: 1, borderColor: 'divider' }}>
+            <Typography component="label" htmlFor="settings-name" variant="body2" sx={{ display: 'block', fontWeight: 700, mb: 1 }}>{tr('내 이름')}</Typography>
+            <NameField value={me?.display_name ?? ''} onSave={saveName} />
           </Box>
-        </Box>
-      </Card>
+          <Box sx={{ px: 2, pb: 2.5 }}>
+            <Typography variant="body2" sx={{ fontWeight: 700, mb: 1.5 }}>{tr('내 일정 색상')}</Typography>
+            <Box role="radiogroup" aria-label={tr('내 일정 색상')} sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              {PALETTE.map((c) => {
+                const on = c === myColor
+                return <ButtonBase key={c} role="radio" aria-checked={on} aria-label={isEnglish() ? 'Color ' + c : '색상 ' + c} onClick={() => pickColor(c)}
+                  sx={{ width: 40, height: 40, borderRadius: '50%', color: palette.getContrastText(c),
+                    '&:focus-visible': { outline: '2px solid var(--mui-palette-primary-main)', outlineOffset: 1 } }}>
+                  <Box sx={{ width: 30, height: 30, borderRadius: '50%', bgcolor: c, display: 'grid', placeItems: 'center',
+                    boxShadow: on ? '0 0 0 2px var(--mui-palette-background-paper), 0 0 0 4px ' + c : 'none' }}>
+                    {on && <CheckIcon size={17} />}
+                  </Box>
+                </ButtonBase>
+              })}
+            </Box>
+          </Box>
+        </Card>
+      </SettingsSection>
 
-<Card>
-        <List disablePadding>
-          <ListItem secondaryAction={pushSupported() && <Switch edge="end" checked={push} disabled={push} onChange={turnOnPush} />}>
-            <ListItemIcon><BellIcon size={22} /></ListItemIcon>
-            <ListItemText primary={tr("푸시 알림")}
-              secondary={pushSupported() ? tr('찌르기, 일정 당일 아침 9시와 시작 1시간 전') : tr("아이폰은 Safari 공유 → '홈 화면에 추가' 후 그 앱에서 켤 수 있어요")} />
-          </ListItem>
-          <ListItem secondaryAction={
-            <Switch edge="end" checked={fx} onChange={(e) => { setFx(e.target.checked); setFxOn(e.target.checked) }} />
-          }>
-            <ListItemIcon><DropletIcon size={22} /></ListItemIcon>
-            <ListItemText primary={tr("날씨 효과")} secondary={tr("비·눈 오는 날 메인 카드에 물방울과 김이 서려요 (문지르면 닦여요)")} />
-          </ListItem>
-          <ListItemButton onClick={() => setPicking('cover')}>
-            <ListItemIcon><ImageIcon size={22} /></ListItemIcon>
-            <ListItemText primary={tr("메인 카드 배경")} secondary={cover.path ? tr('사진이 설정돼 있어요') : tr("홈 맨 위 카드에 둘만의 사진을 깔아요")} />
-          </ListItemButton>
-          <ListItemButton onClick={() => setImporting((v) => !v)}>
-            <ListItemIcon><CalendarPlusIcon size={22} /></ListItemIcon>
-            <ListItemText primary={tr("캘린더 가져오기")} secondary={tr("폰 캘린더에서 내보낸 .ics 파일의 일정을 복사해요")} />
-          </ListItemButton>
-          {importing && <Box sx={{ px: 2, pb: 2 }}><ImportIcs coupleId={coupleId} userId={userId} onDone={() => { setImporting(false); notify(tr("일정을 가져왔어요")) }} /></Box>}
-          <ListItemButton onClick={() => setLeaving(true)}>
-            <ListItemIcon><UnlinkIcon size={22} /></ListItemIcon>
-            <ListItemText primary={tr("연결 끊기")} secondary={tr("같은 사람과 다시 연결하면 일정과 사진이 그대로 돌아와요")} />
-          </ListItemButton>
-          <ListItemButton onClick={auth.signOut}>
-            <ListItemIcon><LogOutIcon size={22} /></ListItemIcon>
-            <ListItemText primary={tr("로그아웃")} />
-          </ListItemButton>
-        </List>
-      </Card>
+      <SettingsSection title={isEnglish() ? 'App preferences' : '앱 설정'}>
+        <Card>
+          <Box sx={{ px: 2, py: 2, borderBottom: 1, borderColor: 'divider' }}>
+            <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>{isEnglish() ? 'Language' : '언어'}</Typography>
+            <Box role="radiogroup" aria-label="언어 / Language" sx={{ display: 'flex', gap: 1 }}>
+              {(['ko', 'en'] as const).map(id => <Button key={id} role="radio" aria-checked={language === id}
+                variant={language === id ? 'contained' : 'outlined'} onClick={() => setLanguage(id)}>{id === 'ko' ? '한국어' : 'English'}</Button>)}
+            </Box>
+          </Box>
+          <List disablePadding sx={{ '& .MuiListItemIcon-root': { minWidth: 38, color: 'text.secondary' },
+            '& .MuiListItemText-primary': { fontSize: 15, fontWeight: 650 }, '& .MuiListItemText-secondary': { mt: 0.25, fontSize: 12, lineHeight: 1.5 } }}>
+            <ListItem sx={{ px: 2, py: 1.5, alignItems: 'flex-start', gap: 1 }}>
+              <ListItemIcon sx={{ mt: 0.5 }}><BellIcon size={20} /></ListItemIcon>
+              <ListItemText sx={{ minWidth: 0, my: 0 }} primary={tr('푸시 알림')}
+                secondary={pushSupported() ? tr('찌르기, 일정 당일 아침 9시와 시작 1시간 전') : tr("아이폰은 Safari 공유 → '홈 화면에 추가' 후 그 앱에서 켤 수 있어요")} />
+              {pushSupported() && <Switch checked={push} disabled={push} onChange={turnOnPush} slotProps={{ input: { 'aria-label': tr('푸시 알림') } }} />}
+            </ListItem>
+            <ListItem sx={{ px: 2, py: 1.5, alignItems: 'flex-start', gap: 1, borderTop: 1, borderColor: 'divider' }}>
+              <ListItemIcon sx={{ mt: 0.5 }}><DropletIcon size={20} /></ListItemIcon>
+              <ListItemText sx={{ minWidth: 0, my: 0 }} primary={tr('날씨 효과')} secondary={tr('비·눈 오는 날 메인 카드에 물방울과 김이 서려요 (문지르면 닦여요)')} />
+              <Switch checked={fx} onChange={(e) => { setFx(e.target.checked); setFxOn(e.target.checked) }} slotProps={{ input: { 'aria-label': tr('날씨 효과') } }} />
+            </ListItem>
+            <ListItemButton onClick={() => setPicking('cover')} sx={{ px: 2, py: 1.5, borderTop: 1, borderColor: 'divider' }}>
+              <ListItemIcon><ImageIcon size={20} /></ListItemIcon>
+              <ListItemText primary={tr('메인 카드 배경')} secondary={cover.path ? tr('사진이 설정돼 있어요') : tr('홈 맨 위 카드에 둘만의 사진을 깔아요')} />
+              <Box sx={{ color: 'text.disabled', lineHeight: 0, ml: 1 }}><ChevronRightIcon size={18} /></Box>
+            </ListItemButton>
+          </List>
+        </Card>
+      </SettingsSection>
+
+      <SettingsSection title={isEnglish() ? 'Calendar & account' : '캘린더 및 계정'}>
+        <Card>
+          <List disablePadding sx={{ '& .MuiListItemIcon-root': { minWidth: 38, color: 'text.secondary' },
+            '& .MuiListItemText-primary': { fontSize: 15, fontWeight: 650 }, '& .MuiListItemText-secondary': { mt: 0.25, fontSize: 12, lineHeight: 1.5 } }}>
+            <ListItemButton onClick={() => setImporting(v => !v)} aria-expanded={importing} sx={{ px: 2, py: 1.5 }}>
+              <ListItemIcon><CalendarPlusIcon size={20} /></ListItemIcon>
+              <ListItemText primary={tr('캘린더 가져오기')} secondary={tr('폰 캘린더에서 내보낸 .ics 파일의 일정을 복사해요')} />
+              <Box sx={{ color: 'text.disabled', lineHeight: 0, ml: 1, transform: importing ? 'rotate(90deg)' : 'none', transition: 'transform .2s', '@media (prefers-reduced-motion: reduce)': { transition: 'none' } }}><ChevronRightIcon size={18} /></Box>
+            </ListItemButton>
+            {importing && <Box sx={{ px: 2, pb: 2 }}><ImportIcs coupleId={coupleId} userId={userId} onDone={() => { setImporting(false); notify(tr('일정을 가져왔어요')) }} /></Box>}
+            <ListItemButton onClick={() => setLeaving(true)} sx={{ px: 2, py: 1.5, borderTop: 1, borderColor: 'divider' }}>
+              <ListItemIcon><UnlinkIcon size={20} /></ListItemIcon>
+              <ListItemText primary={tr('연결 끊기')} secondary={tr('같은 사람과 다시 연결하면 일정과 사진이 그대로 돌아와요')} />
+              <Box sx={{ color: 'text.disabled', lineHeight: 0, ml: 1 }}><ChevronRightIcon size={18} /></Box>
+            </ListItemButton>
+            <ListItemButton onClick={auth.signOut} sx={{ px: 2, py: 1.5, borderTop: 1, borderColor: 'divider' }}>
+              <ListItemIcon><LogOutIcon size={20} /></ListItemIcon><ListItemText primary={tr('로그아웃')} />
+              <Box sx={{ color: 'text.disabled', lineHeight: 0, ml: 1 }}><ChevronRightIcon size={18} /></Box>
+            </ListItemButton>
+          </List>
+        </Card>
+      </SettingsSection>
 
       {picking === 'avatar' && me && (
         <ImageFitDialog title={tr("내 프로필 사진")} round ratio={1} max={400} prefix={`${coupleId}/avatar`}
@@ -197,12 +220,19 @@ export default function Settings({ coupleId, userId, notify, profiles, colorOf, 
   )
 }
 
+function SettingsSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return <Box component="section" sx={{ mb: 3 }}>
+    <Typography component="h2" sx={{ fontSize: 14, fontWeight: 700, mb: 1, px: 0.25 }}>{title}</Typography>
+    {children}
+  </Box>
+}
+
 // 입력 중에는 제 상태로 두고, 포커스를 벗어날 때만 저장한다 (글자마다 DB를 때리지 않게)
 function NameField({ value, onSave }: { value: string; onSave: (v: string) => void }) {
   const [v, setV] = useState(value)
   useEffect(() => { setV(value) }, [value])
   return (
-    <TextField size="small" placeholder={tr("예: 병현")} value={v} onChange={(e) => setV(e.target.value)}
+    <TextField id="settings-name" size="small" placeholder={tr("예: 병현")} value={v} onChange={(e) => setV(e.target.value)}
       onBlur={() => onSave(v.trim())} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
       helperText={tr("홈 메인 카드와 설정에 보이는 이름이에요 (20자까지)")}
       slotProps={{ htmlInput: { maxLength: 20 } }} />

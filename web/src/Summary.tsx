@@ -26,7 +26,7 @@ const md = (k: string) => new Date(`${k}T00:00`).toLocaleDateString(locale(), { 
 // Date.getDay()는 일요일이 0이라, 월요일부터인 WEEK에 넣으려면 한 칸 돌린다
 const dow = (k: string) => new Date(`${k}T00:00`).toLocaleDateString(locale(), { weekday: 'short' })
 
-export default function Summary({ coupleId, userId, version, notify, profiles, colorOf }: TabProps) {
+export default function Summary({ coupleId, userId, active, eventVersion, coupleVersion, notify, profiles, colorOf }: TabProps) {
   const { palette } = useTheme()
   const [startedOn, setStartedOn] = useState<string | null | undefined>(undefined)
   const [week, setWeek] = useState<Event[]>([])
@@ -34,11 +34,17 @@ export default function Summary({ coupleId, userId, version, notify, profiles, c
   const [cover, setCover] = useState<{ url: string | null; path: string | null; fit: Fit }>({ url: null, path: null, fit: DEFAULT_FIT })
   const [weather, setWeather] = useState<Weather | null | undefined>(undefined)
   // 설정에서 끄면 효과를 아예 안 그린다. 탭을 옮기면 다시 읽히므로 따로 전파할 필요가 없다
-  const [fx] = useState(fxOn)
+  const [fx, setFx] = useState(fxOn)
   const [editing, setEditing] = useState(false)
   const [pickingCover, setPickingCover] = useState(false)
   const [coverRatio, setCoverRatio] = useState(16 / 9)
   const cardRef = useRef<HTMLDivElement>(null)
+  const eventKey = useRef('')
+  const coupleKey = useRef(-1)
+  const coupleLoadId = useRef(0)
+  const eventLoadId = useRef(0)
+  const coupleFetchedAt = useRef(0)
+  const eventsFetchedAt = useRef(0)
 
   const now = new Date()
   const today = ymd(now)
@@ -48,28 +54,40 @@ export default function Summary({ coupleId, userId, version, notify, profiles, c
   const from = weekStart.toISOString()
   const to = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 7).toISOString()
 
-  const load = useCallback(async () => {
-    const [c, w, d] = await Promise.all([
-      supabase.from('couples').select('started_on,cover_path,cover_zoom,cover_x,cover_y').eq('id', coupleId).single(),
-      eventsInRange(from, to, fromDay),
-      ddayEvents(),
-    ])
-    if (c.error || w.error || d.error) return notify(koError((c.error ?? w.error ?? d.error)!))
+  const loadCouple = useCallback(async () => {
+    const id = ++coupleLoadId.current
+    const c = await supabase.from('couples').select('started_on,cover_path,cover_zoom,cover_x,cover_y').eq('id', coupleId).single()
+    if (id !== coupleLoadId.current) return
+    if (c.error) { coupleKey.current = -1; return notify(koError(c.error)) }
+    const url = await signedUrl(c.data.cover_path)
+    if (id !== coupleLoadId.current) return
     setStartedOn(c.data.started_on)
-    setWeek(w.data)
-    setDdays(d.data)
-    setCover({ url: await signedUrl(c.data.cover_path), path: c.data.cover_path, fit: { zoom: c.data.cover_zoom, x: c.data.cover_x, y: c.data.cover_y } })
-  }, [coupleId, from, to, fromDay, notify])
+    coupleFetchedAt.current = Date.now()
+    setCover({ url, path: c.data.cover_path, fit: { zoom: c.data.cover_zoom, x: c.data.cover_x, y: c.data.cover_y } })
+  }, [coupleId, notify])
 
-  useEffect(() => { load() }, [load, version])
-  // 날씨는 커플 데이터와 무관해서 version과 상관없이 한 번만 (안에서 10분 캐시한다)
-  useEffect(() => { getWeather().then(setWeather) }, [])
+  const loadEvents = useCallback(async () => {
+    const id = ++eventLoadId.current
+    const [w, d] = await Promise.all([eventsInRange(from, to, fromDay), ddayEvents()])
+    if (id !== eventLoadId.current) return
+    if (w.error || d.error) { eventKey.current = ''; return notify(koError((w.error ?? d.error)!)) }
+    setWeek(w.data); setDdays(d.data); eventsFetchedAt.current = Date.now()
+  }, [from, to, fromDay, notify])
+
+  useEffect(() => {
+    if (active && (coupleKey.current !== coupleVersion || (coupleFetchedAt.current > 0 && Date.now() - coupleFetchedAt.current > 60_000))) { coupleKey.current = coupleVersion; loadCouple() }
+  }, [active, coupleVersion, loadCouple])
+  useEffect(() => {
+    const key = `${from}/${to}/${eventVersion}`
+    if (active && (eventKey.current !== key || (eventsFetchedAt.current > 0 && Date.now() - eventsFetchedAt.current > 60_000))) { eventKey.current = key; loadEvents() }
+  }, [active, from, to, eventVersion, loadEvents])
+  useEffect(() => { if (active) { setFx(fxOn()); getWeather().then(setWeather) } }, [active])
 
   const saveStart = async (value: string) => {
     const { error } = await supabase.from('couples').update({ started_on: value || null }).eq('id', coupleId)
     if (error) return notify(koError(error))
     setEditing(false)
-    load()
+    loadCouple()
   }
 
   const saveCover = async (v: Fit & { path: string | null }) => {
@@ -77,7 +95,7 @@ export default function Summary({ coupleId, userId, version, notify, profiles, c
       .update({ cover_path: v.path, cover_zoom: v.zoom, cover_x: v.x, cover_y: v.y }).eq('id', coupleId)
     if (error) throw error
     setPickingCover(false)
-    load()
+    loadCouple()
   }
 
   const editCover = () => {

@@ -21,28 +21,41 @@ const writeRows = (coupleId: string, rows: Photo[]) => {
   try { localStorage.setItem(cacheKey(coupleId), JSON.stringify(rows)) } catch { /* 용량 초과면 캐시 없이 간다 */ }
 }
 
-export default function Album({ coupleId, userId, version, notify }: TabProps) {
+export default function Album({ coupleId, userId, active, photoVersion, notify }: TabProps) {
   const [photos, setPhotos] = useState<Photo[] | null>(null)
+  const loadId = useRef(0)
+  const lastVersion = useRef(-1)
+  const fetchedAt = useRef(0)
 
   const load = useCallback(async (fromCache: boolean) => {
+    const id = ++loadId.current
+    let serverApplied = false
     // 저장해 둔 목록이 있으면 먼저 보여 준다. 썸네일 주소도 캐시에 있으면 요청이 아예 안 나간다
     if (fromCache) {
       const cached = readRows(coupleId)
-      if (cached?.length) setPhotos(await withThumbs(cached))
+      if (cached?.length) withThumbs(cached).then(rows => {
+        if (id === loadId.current && !serverApplied) setPhotos(rows)
+      })
     }
     const { data, error } = await supabase.from('photos').select(PHOTO_COLUMNS)
       .order('photo_date', { ascending: false }).order('created_at', { ascending: false }).limit(LIMIT)
-    if (error) return notify(koError(error))
+    if (id !== loadId.current) return
+    if (error) { lastVersion.current = -1; return notify(koError(error)) }
     writeRows(coupleId, data)
-    setPhotos(await withThumbs(data))
+    const rows = await withThumbs(data)
+    if (id !== loadId.current) return
+    serverApplied = true
+    fetchedAt.current = Date.now()
+    setPhotos(rows)
   }, [coupleId, notify])
 
   // 캐시는 탭을 처음 열 때만 쓴다. version이 오르면(상대가 바꿈) 서버 것만 받는다
-  const first = useRef(true)
   useEffect(() => {
-    load(first.current)
-    first.current = false
-  }, [load, version])
+    if (!active || (lastVersion.current === photoVersion && (!fetchedAt.current || Date.now() - fetchedAt.current <= 60_000))) return
+    const first = lastVersion.current === -1
+    lastVersion.current = photoVersion
+    load(first)
+  }, [active, load, photoVersion])
 
   if (photos === null) return <GridSkeleton />
 

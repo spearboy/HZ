@@ -8,9 +8,16 @@ export type Weather = { temp: number; code: number; max: number; min: number; po
 
 const KEY = 'weather'
 const FRESH = 10 * 60 * 1000
+let pending: Promise<Weather | null> | null = null
 
 // 탭을 오갈 때마다 다시 부르지 않게 10분 캐시
-export async function getWeather(): Promise<Weather | null> {
+export function getWeather(): Promise<Weather | null> {
+  if (pending) return pending
+  pending = loadWeather().finally(() => { pending = null })
+  return pending
+}
+
+async function loadWeather(): Promise<Weather | null> {
   try {
     const hit = JSON.parse(localStorage.getItem(KEY) ?? 'null') as { at: number; w: Weather } | null
     if (hit && Date.now() - hit.at < FRESH) return hit.w

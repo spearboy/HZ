@@ -6,7 +6,7 @@ import { makeIcon, type Playable } from './icons'
 import { keyframes } from '@emotion/react'
 import Summary from './Summary'
 import { CalendarSkeleton, GridSkeleton, SummarySkeleton } from './Skeletons'
-import { signedUrl } from './Photos'
+import { signedUrls } from './Photos'
 import { DEFAULT_FIT, type Fit } from './ImageFit'
 import { supabase } from './supabase'
 // 처음 보이는 홈만 바로 싣고, 나머지 탭은 그 탭을 열 때 받아온다
@@ -34,7 +34,7 @@ const PROFILE_COLUMNS = 'id,display_name,color,avatar_path,avatar_zoom,avatar_x,
 export const avatarFit = (p: Profile): Fit =>
   p.avatar_path ? { zoom: p.avatar_zoom, x: p.avatar_x, y: p.avatar_y } : DEFAULT_FIT
 export type TabProps = {
-  coupleId: string; userId: string; version: number; notify: (m: string) => void
+  coupleId: string; userId: string; active: boolean; eventVersion: number; photoVersion: number; coupleVersion: number; notify: (m: string) => void
   profiles: Profile[]; colorOf: (userId: string) => string; reloadProfiles: () => void; onLeft: () => void
 }
 
@@ -43,49 +43,71 @@ export const DEFAULT_COLORS = { me: '#ff6b8b', partner: '#5b8def' }
 
 export default function Home({ coupleId, userId, onLeft }: { coupleId: string; userId: string; onLeft: () => void }) {
   const [tab, setTab] = useState(0)
-  const [version, setVersion] = useState(0)
+  const [eventVersion, setEventVersion] = useState(0)
+  const [photoVersion, setPhotoVersion] = useState(0)
+  const [coupleVersion, setCoupleVersion] = useState(0)
+  const [visited, setVisited] = useState<Set<number>>(() => new Set([0]))
   const [toast, setToast] = useState('')
   const [profiles, setProfiles] = useState<Profile[]>([])
+  const profileLoadId = useRef(0)
 
   const reloadProfiles = useCallback(async () => {
+    const id = ++profileLoadId.current
     const { data } = await supabase.from('profiles').select(PROFILE_COLUMNS)
-    // 비공개 버킷이라 프로필 사진도 서명 URL이 필요하다
-    setProfiles(await Promise.all((data ?? []).map(async (p) => ({ ...p, avatarUrl: await signedUrl(p.avatar_path) }))))
+    if (!data || id !== profileLoadId.current) return
+    const paths = data.flatMap(p => p.avatar_path ? [p.avatar_path] : [])
+    const urls = await signedUrls(paths)
+    if (id !== profileLoadId.current) return
+    const byPath = new Map(paths.map((path, index) => [path, urls[index]]))
+    setProfiles(data.map(p => ({ ...p, avatarUrl: p.avatar_path ? byPath.get(p.avatar_path) : null })))
   }, [])
-  useEffect(() => { reloadProfiles() }, [reloadProfiles, version])
+  useEffect(() => { reloadProfiles() }, [reloadProfiles])
 
   // 상대가 바꾼 일정/사진은 version을 올려 각 탭이 다시 불러오게 하고, 찌르기를 받으면 알려 준다
   useEffect(() => {
-    const bump = () => setVersion((v) => v + 1)
+    const timers: Partial<Record<'event' | 'photo' | 'profile' | 'couple', ReturnType<typeof setTimeout>>> = {}
+    const schedule = (key: keyof typeof timers, action: () => void) => {
+      clearTimeout(timers[key])
+      timers[key] = setTimeout(action, 180)
+    }
+    let connected = false
     const ch = supabase.channel('couple')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `couple_id=eq.${coupleId}` }, bump)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'photos', filter: `couple_id=eq.${coupleId}` }, bump)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, bump)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'couples', filter: `id=eq.${coupleId}` }, bump)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `couple_id=eq.${coupleId}` }, () => schedule('event', () => setEventVersion(v => v + 1)))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'photos', filter: `couple_id=eq.${coupleId}` }, () => schedule('photo', () => setPhotoVersion(v => v + 1)))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, () => schedule('profile', () => { reloadProfiles() }))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'couples', filter: `id=eq.${coupleId}` }, () => schedule('couple', () => setCoupleVersion(v => v + 1)))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pokes', filter: `receiver_id=eq.${userId}` }, () => setToast(tr('콕! 상대가 찔렀어요 👉')))
-      .subscribe()
-    return () => { supabase.removeChannel(ch) }
-  }, [coupleId, userId])
+      .subscribe(status => {
+        if (status !== 'SUBSCRIBED') return
+        if (connected) {
+          setEventVersion(v => v + 1); setPhotoVersion(v => v + 1); setCoupleVersion(v => v + 1); reloadProfiles()
+        }
+        connected = true
+      })
+    return () => { Object.values(timers).forEach(clearTimeout); supabase.removeChannel(ch) }
+  }, [coupleId, userId, reloadProfiles])
 
-  const colorOf = (id: string) => profiles.find((p) => p.id === id)?.color ?? (id === userId ? DEFAULT_COLORS.me : DEFAULT_COLORS.partner)
-  const props: TabProps = { coupleId, userId, version, notify: setToast, profiles, colorOf, reloadProfiles, onLeft }
+  const colorOf = useCallback((id: string) => profiles.find((p) => p.id === id)?.color ?? (id === userId ? DEFAULT_COLORS.me : DEFAULT_COLORS.partner), [profiles, userId])
+  const props = { coupleId, userId, eventVersion, photoVersion, coupleVersion, notify: setToast, profiles, colorOf, reloadProfiles, onLeft }
 
   return (
     <Box sx={{ minHeight: '100dvh', pb: 'calc(72px + env(safe-area-inset-bottom))', bgcolor: 'background.default' }}>
-      <Box key={tab} sx={{ maxWidth: 640, mx: 'auto',
-        animation: `${fadeIn} .32s cubic-bezier(.2,.8,.2,1)`,
-        '@media (prefers-reduced-motion: reduce)': { animation: 'none' } }}>
-        <Suspense fallback={SKELETON[tab]}>
-          {tab === 0 && <Summary {...props} />}
-          {tab === 1 && <Calendar {...props} />}
-          {tab === 2 && <Album {...props} />}
-          {tab === 3 && <Settings {...props} />}
-        </Suspense>
-      </Box>
+      {[0, 1, 2, 3].map(i => visited.has(i) && (
+        <Box key={i} hidden={tab !== i} sx={{ maxWidth: 640, mx: 'auto', animation: tab === i ? `${fadeIn} .32s cubic-bezier(.2,.8,.2,1)` : 'none',
+          '@media (prefers-reduced-motion: reduce)': { animation: 'none' } }}>
+          <Suspense fallback={SKELETON[i]}>
+            {i === 0 && <Summary {...props} active={tab === i} />}
+            {i === 1 && <Calendar coupleId={coupleId} userId={userId} eventVersion={eventVersion} photoVersion={photoVersion}
+              notify={setToast} colorOf={colorOf} active={tab === i} />}
+            {i === 2 && <Album {...props} active={tab === i} />}
+            {i === 3 && <Settings {...props} active={tab === i} />}
+          </Suspense>
+        </Box>
+      ))}
 
       <Paper elevation={0} sx={{ position: 'fixed', left: 0, right: 0, bottom: 0, borderRadius: 0, borderTop: 1, borderColor: 'divider',
         pb: 'env(safe-area-inset-bottom)', bgcolor: 'background.paper' }}>
-        <BottomNavigation showLabels value={tab} onChange={(_, v) => setTab(v)} sx={{ bgcolor: 'transparent', maxWidth: 640, mx: 'auto', height: 68,
+        <BottomNavigation showLabels value={tab} onChange={(_, v) => { setVisited(prev => new Set(prev).add(v)); setTab(v) }} sx={{ bgcolor: 'transparent', maxWidth: 640, mx: 'auto', height: 68,
           '& .MuiBottomNavigationAction-root': { minWidth: 0, gap: 0.5, color: 'text.secondary' },
           '& .MuiBottomNavigationAction-label': { fontSize: 11, fontWeight: 600 },
           '& .Mui-selected .MuiBottomNavigationAction-label': { fontSize: 11 } }}>

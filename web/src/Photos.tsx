@@ -18,6 +18,7 @@ const REUSE_MARGIN = 10 * 60 * 1000  // 만료 10분 전부터는 새로 받는�
 const CACHE_KEY = 'signedUrls'
 
 type Signed = Record<string, { url: string; exp: number }>
+const pendingUrls = new Map<string, Promise<string | null>>()
 
 const readCache = (): Signed => {
   try { return JSON.parse(localStorage.getItem(CACHE_KEY) ?? '{}') as Signed } catch { return {} }
@@ -31,19 +32,28 @@ export async function signedUrls(paths: string[]): Promise<(string | null)[]> {
   const cache = readCache()
   const now = Date.now()
   const stale = [...new Set(paths.filter((p) => !(cache[p] && cache[p].exp - now > REUSE_MARGIN)))]
+  const missing = stale.filter(p => !pendingUrls.has(p))
 
-  if (stale.length) {
-    const { data } = await bucket().createSignedUrls(stale, URL_TTL)
-    data?.forEach((d, i) => {
-      if (d.signedUrl) cache[stale[i]] = { url: d.signedUrl, exp: now + URL_TTL * 1000 }
+  if (missing.length) {
+    const request = bucket().createSignedUrls(missing, URL_TTL).then(({ data }) => {
+      const latest = readCache()
+      const completedAt = Date.now()
+      for (const k of Object.keys(latest)) if (latest[k].exp <= completedAt) delete latest[k]
+      data?.forEach((d, i) => {
+        if (d.signedUrl) latest[missing[i]] = { url: d.signedUrl, exp: now + URL_TTL * 1000 }
+      })
+      writeCache(latest)
+      return data
+    }).catch(() => null)
+    missing.forEach((path, index) => {
+      const promise = request.then(data => data?.[index]?.signedUrl || null)
+      pendingUrls.set(path, promise)
+      void promise.finally(() => { if (pendingUrls.get(path) === promise) pendingUrls.delete(path) })
     })
-    // 여러 화면이 동시에 서명을 요청하면 서로의 결과를 덮어쓴다. 쓰기 직전에 다시 읽어 합친다
-    const merged = { ...readCache(), ...cache }
-    for (const k of Object.keys(merged)) if (merged[k].exp <= now) delete merged[k] // 만료된 건 버린다
-    writeCache(merged)
-    Object.assign(cache, merged)
   }
-  return paths.map((p) => cache[p]?.url ?? null)
+  const fetched = await Promise.all(stale.map(p => pendingUrls.get(p) ?? Promise.resolve(null)))
+  const byPath = new Map(stale.map((path, i) => [path, fetched[i]]))
+  return paths.map(p => byPath.has(p) ? byPath.get(p) ?? null : cache[p]?.url ?? null)
 }
 
 export const signedUrl = async (path: string | null) => (path ? (await signedUrls([path]))[0] : null)

@@ -1,5 +1,5 @@
 import { isEnglish, locale, tr } from './language'
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   Box, Button, ButtonBase, Card, CardActionArea, DialogActions, DialogContent, DialogTitle, Drawer, Fab,
   FormControlLabel, IconButton, Stack, Switch, TextField, ToggleButton, ToggleButtonGroup, Typography,
@@ -27,7 +27,9 @@ const md = (k: string) => `${+k.slice(5, 7)}/${+k.slice(8)}`
 const VIEW_KEY = 'dayView'
 const HOUR_PX = 54
 
-export default function Calendar({ coupleId, userId, version, notify, colorOf }: TabProps) {
+type CalendarProps = Pick<TabProps, 'coupleId' | 'userId' | 'active' | 'eventVersion' | 'photoVersion' | 'notify' | 'colorOf'>
+
+function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify, colorOf }: CalendarProps) {
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
   const [events, setEvents] = useState<Event[]>([])
   const [photos, setPhotos] = useState<Photo[]>([])
@@ -36,9 +38,15 @@ export default function Calendar({ coupleId, userId, version, notify, colorOf }:
   const [editing, setEditing] = useState<Event | 'new' | null>(null)
   const [uploading, setUploading] = useState(false)
   const touch = useRef<{ x: number; y: number } | null>(null)
-  const loadId = useRef(0)
+  const eventLoadId = useRef(0)
+  const photoLoadId = useRef(0)
+  const eventKey = useRef('')
+  const photoKey = useRef('')
+  const eventsFetchedAt = useRef(0)
+  const photosFetchedAt = useRef(0)
   const [dir, setDir] = useState(0)
-  const [ready, setReady] = useState(false)
+  const [eventsReady, setEventsReady] = useState(false)
+  const [photosReady, setPhotosReady] = useState(false)
   const [view, setView] = useState<'list' | 'grid'>(() => {
     try { return localStorage.getItem(VIEW_KEY) === 'grid' ? 'grid' : 'list' } catch { return 'list' }
   })
@@ -55,20 +63,33 @@ export default function Calendar({ coupleId, userId, version, notify, colorOf }:
   const fromDay = ymd(days[0])
   const toDay = ymd(days[41])
 
-  const load = useCallback(async () => {
-    const id = ++loadId.current
-    const [ev, ph] = await Promise.all([
-      eventsInRange(from, to, fromDay),
-      supabase.from('photos').select(PHOTO_COLUMNS).gte('photo_date', fromDay).lte('photo_date', toDay).order('created_at'),
-    ])
-    if (id !== loadId.current) return
-    if (ev.error || ph.error) return notify(koError((ev.error ?? ph.error)!))
+  const loadEvents = useCallback(async () => {
+    const id = ++eventLoadId.current
+    const ev = await eventsInRange(from, to, fromDay)
+    if (id !== eventLoadId.current) return
+    if (ev.error) { eventKey.current = ''; return notify(koError(ev.error)) }
     setEvents(ev.data)
+    eventsFetchedAt.current = Date.now()
+    setEventsReady(true)
+  }, [from, to, fromDay, notify])
+  const loadPhotos = useCallback(async () => {
+    const id = ++photoLoadId.current
+    const ph = await supabase.from('photos').select(PHOTO_COLUMNS).gte('photo_date', fromDay).lte('photo_date', toDay).order('created_at')
+    if (id !== photoLoadId.current) return
+    if (ph.error) { photoKey.current = ''; return notify(koError(ph.error)) }
     setPhotos(ph.data)
-    setReady(true)
-  }, [from, to, fromDay, toDay, notify])
+    photosFetchedAt.current = Date.now()
+    setPhotosReady(true)
+  }, [fromDay, toDay, notify])
 
-  useEffect(() => { load(); return () => { loadId.current++ } }, [load, version])
+  useEffect(() => {
+    const key = `${from}/${to}/${eventVersion}`
+    if (active && (eventKey.current !== key || (eventsFetchedAt.current > 0 && Date.now() - eventsFetchedAt.current > 60_000))) { eventKey.current = key; loadEvents() }
+  }, [active, from, to, eventVersion, loadEvents])
+  useEffect(() => {
+    const key = `${fromDay}/${toDay}/${photoVersion}`
+    if (active && (photoKey.current !== key || (photosFetchedAt.current > 0 && Date.now() - photosFetchedAt.current > 60_000))) { photoKey.current = key; loadPhotos() }
+  }, [active, fromDay, toDay, photoVersion, loadPhotos])
 
   useEffect(() => {
     let active = true
@@ -87,7 +108,7 @@ export default function Calendar({ coupleId, userId, version, notify, colorOf }:
     try { await uploadPhotos(files, coupleId, userId, selected) }
     catch (e) { notify(e instanceof Error ? koError(e) : String(e)) }
     setUploading(false)
-    load()
+    loadPhotos()
   }
 
   const today = ymd(new Date())
@@ -103,7 +124,7 @@ export default function Calendar({ coupleId, userId, version, notify, colorOf }:
   const dayList = byDay.get(selected) ?? []
   const color = (ev: Event) => colorOf(ev.created_by)
 
-  if (!ready) return <CalendarSkeleton />
+  if (!eventsReady || !photosReady) return <CalendarSkeleton />
 
   return (
     <Box sx={{ p: 2, pb: 12 }}>
@@ -243,7 +264,7 @@ export default function Calendar({ coupleId, userId, version, notify, colorOf }:
           <input type="file" accept="image/*" multiple hidden onChange={(e) => e.target.files && upload(e.target.files)} />
         </Button>
       </Stack>
-      <PhotoGrid photos={dayPhotos} userId={userId} onChanged={load} onError={notify} />
+      <PhotoGrid photos={dayPhotos} userId={userId} onChanged={loadPhotos} onError={notify} />
 
       <Fab color="primary" aria-label={tr("일정 추가")} onClick={() => setEditing('new')}
         sx={{ position: 'fixed', right: 20, bottom: 'calc(88px + env(safe-area-inset-bottom))', boxShadow: '0 6px 18px #30214d30',
@@ -254,11 +275,13 @@ export default function Calendar({ coupleId, userId, version, notify, colorOf }:
 
       {editing && (
         <EventDialog key={editing === 'new' ? 'new' : editing.id} event={editing === 'new' ? null : editing} date={selected}
-          coupleId={coupleId} userId={userId} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load() }} notify={notify} />
+          coupleId={coupleId} userId={userId} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); loadEvents() }} notify={notify} />
       )}
     </Box>
   )
 }
+
+export default memo(Calendar)
 
 function EventDialog({ event, date, coupleId, userId, onClose, onSaved, notify }: {
   event: Event | null; date: string; coupleId: string; userId: string; onClose: () => void; onSaved: () => void; notify: (m: string) => void
