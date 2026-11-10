@@ -6,13 +6,14 @@ export const CardSkeleton = ({ h }: { h: number }) => <Skeleton variant="rounded
 export function SummarySkeleton() {
   return (
     <Box sx={{ p: 2, pb: 12 }}>
-      <Skeleton width={48} height={40} sx={{ mb: 1 }} />
-      <Box sx={{ mb: 3 }}><CardSkeleton h={176} /></Box>
-      <Box sx={{ mb: 3 }}><CardSkeleton h={68} /></Box>
-      <Skeleton width={64} height={28} sx={{ mb: 1 }} />
-      <Stack spacing={1} sx={{ mb: 3 }}>{[0, 1].map((i) => <CardSkeleton key={i} h={64} />)}</Stack>
+      <Skeleton width={100} height={62} sx={{ mb: 2 }} />
+      <Box sx={{ mb: 3 }}><CardSkeleton h={196} /></Box>
+      <Skeleton width={96} height={28} sx={{ mb: 1 }} />
+      <Box sx={{ mb: 3 }}><CardSkeleton h={86} /></Box>
+      <Skeleton width={96} height={28} sx={{ mb: 1 }} />
+      <Box sx={{ mb: 3 }}><CardSkeleton h={72} /></Box>
       <Skeleton width={72} height={28} sx={{ mb: 1 }} />
-      <CardSkeleton h={320} />
+      <CardSkeleton h={88} />
     </Box>
   )
 }

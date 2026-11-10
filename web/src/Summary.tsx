@@ -1,9 +1,9 @@
 import { isEnglish, locale, tr } from './language'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Box, Button, Card, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Stack, TextField, Typography, useTheme,
+  Box, Button, ButtonBase, Card, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Skeleton, Stack, TextField, Typography, useTheme,
 } from '@mui/material'
-import { HeartIcon, PencilIcon } from '@animateicons/react/lucide'
+import { ChevronRightIcon, HeartIcon, PencilIcon } from '@animateicons/react/lucide'
 import { koError, supabase } from './supabase'
 import { signedUrl } from './Photos'
 import ImageFitDialog, { DEFAULT_FIT, FitAvatar, fitImg, type Fit } from './ImageFit'
@@ -20,17 +20,17 @@ import { poke } from './poke'
 
 // 홈의 '이번 주'는 월요일에 시작해 일요일에 끝난다 (캘린더 탭의 월 그리드는 일요일 시작 그대로)
 const WEEK = ['월', '화', '수', '목', '금', '토', '일']
-const SAT = 5
-const SUN = 6
 const md = (k: string) => new Date(`${k}T00:00`).toLocaleDateString(locale(), { month: 'long', day: 'numeric' })
 // Date.getDay()는 일요일이 0이라, 월요일부터인 WEEK에 넣으려면 한 칸 돌린다
 const dow = (k: string) => new Date(`${k}T00:00`).toLocaleDateString(locale(), { weekday: 'short' })
 
-export default function Summary({ coupleId, userId, active, eventVersion, coupleVersion, notify, profiles, colorOf }: TabProps) {
+export default function Summary({ coupleId, userId, active, eventVersion, coupleVersion, notify, profiles, colorOf, openCalendar }: TabProps) {
   const { palette } = useTheme()
   const [startedOn, setStartedOn] = useState<string | null | undefined>(undefined)
   const [week, setWeek] = useState<Event[]>([])
   const [ddays, setDdays] = useState<Event[]>([])
+  const [eventsReady, setEventsReady] = useState(false)
+  const [eventsError, setEventsError] = useState(false)
   const [cover, setCover] = useState<{ url: string | null; path: string | null; fit: Fit }>({ url: null, path: null, fit: DEFAULT_FIT })
   const [weather, setWeather] = useState<Weather | null | undefined>(undefined)
   // 설정에서 끄면 효과를 아예 안 그린다. 탭을 옮기면 다시 읽히므로 따로 전파할 필요가 없다
@@ -70,8 +70,8 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
     const id = ++eventLoadId.current
     const [w, d] = await Promise.all([eventsInRange(from, to, fromDay), ddayEvents()])
     if (id !== eventLoadId.current) return
-    if (w.error || d.error) { eventKey.current = ''; return notify(koError((w.error ?? d.error)!)) }
-    setWeek(w.data); setDdays(d.data); eventsFetchedAt.current = Date.now()
+    if (w.error || d.error) { eventKey.current = ''; setEventsError(true); return notify(koError((w.error ?? d.error)!)) }
+    setWeek(w.data); setDdays(d.data); setEventsReady(true); setEventsError(false); eventsFetchedAt.current = Date.now()
   }, [from, to, fromDay, notify])
 
   useEffect(() => {
@@ -111,6 +111,8 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
   const partner = profiles.find((p) => p.id !== userId)
   const together = startedOn ? coupleDays(startedOn, today) : null
   const byDay = groupByDay(week, days[0], days[6])
+  const todayList = byDay.get(today) ?? []
+  const weekWithEvents = days.filter(day => day !== today && ((byDay.get(day)?.length ?? 0) > 0 || holidayName(day)))
   const glass = fx && weather ? weatherFx(weather.code) : 'none'
   const upcoming = ddays
     .map((ev) => ({ ev, on: nextStart(ev, today) }))
@@ -119,10 +121,15 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
 
   return (
     <Box sx={{ p: 2, pb: 12 }}>
-      <Stack direction="row" sx={{ alignItems: 'center', mb: 2.5, pt: 1 }}>
-        <Box sx={{ flex: 1 }}><Typography variant="caption" color="text.secondary" sx={{ letterSpacing: '.12em', fontWeight: 700 }}>MORO</Typography>
-          <Typography variant="h5">{tr("홈")}</Typography></Box>
-        <Button variant="outlined" startIcon={<HeartIcon size={17} />} onClick={() => poke(notify)}>{tr("콕 찌르기")}</Button>
+      <Stack direction="row" sx={{ alignItems: 'center', gap: 1, mb: 2.5, pt: 1 }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography component="h1" sx={{ fontSize: 25, fontWeight: 750, letterSpacing: '-.04em', lineHeight: 1.2 }}>MORO</Typography>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 0.5 }}>
+            <Typography variant="body2" color="text.secondary">{now.toLocaleDateString(locale(), { month: 'long', day: 'numeric', weekday: 'short' })}</Typography>
+            <WeatherCard w={weather} compact />
+          </Stack>
+        </Box>
+        <Button variant="outlined" startIcon={<HeartIcon size={17} />} onClick={() => poke(notify)} sx={{ flexShrink: 0 }}>{tr('콕 찌르기')}</Button>
       </Stack>
 
       {/* 커플 디데이 */}
@@ -155,8 +162,10 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
             <Typography variant="body2" sx={{ opacity: 0.85 }}>{tr("함께한 지")}</Typography>
             <Typography sx={{ fontSize: 38, fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1.15 }}>{together.n.toLocaleString(locale())}{isEnglish() ? ' days' : '일'}</Typography>
             <Stack direction="row" spacing={1} sx={{ mt: 1.5, flexWrap: 'wrap', rowGap: 1 }}>
-              <Chip size="small" label={`${together.hundred.n}${isEnglish() ? ' days' : '일'} ${dLabel(together.hundred.left)}`} sx={{ bgcolor: '#ffffff24', color: 'inherit' }} />
-              <Chip size="small" label={`${together.anniversary.years}${isEnglish() ? '-year anniversary' : '주년'} ${dLabel(together.anniversary.left)}`} sx={{ bgcolor: '#ffffff24', color: 'inherit' }} />
+              <Chip size="small" label={`${together.hundred.n}${isEnglish() ? ' days' : '일'} ${dLabel(together.hundred.left)}`}
+                sx={{ bgcolor: '#251e3de6', color: 'inherit', border: '1px solid #ffffff40', '@supports (backdrop-filter: blur(8px))': { bgcolor: '#251e3dba', backdropFilter: 'blur(8px)' }, '@media (prefers-reduced-transparency: reduce)': { bgcolor: '#251e3d', backdropFilter: 'none' } }} />
+              <Chip size="small" label={`${together.anniversary.years}${isEnglish() ? '-year anniversary' : '주년'} ${dLabel(together.anniversary.left)}`}
+                sx={{ bgcolor: '#251e3de6', color: 'inherit', border: '1px solid #ffffff40', '@supports (backdrop-filter: blur(8px))': { bgcolor: '#251e3dba', backdropFilter: 'blur(8px)' }, '@media (prefers-reduced-transparency: reduce)': { bgcolor: '#251e3d', backdropFilter: 'none' } }} />
             </Stack>
           </>
         ) : startedOn === null && (
@@ -168,63 +177,92 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
         </Box>
       </Card>
 
-      <WeatherCard w={weather} />
-
-      {/* 일정 디데이 */}
-      <Typography component="h2" sx={{ fontWeight: 700, mb: 1 }}>{tr("디데이")}</Typography>
-      <Stack spacing={1} sx={{ mb: 3 }}>
-        {upcoming.map(({ ev, on }) => {
-          const left = dayDiff(today, on)
-          return (
-            <Card key={ev.id}>
-              <Stack direction="row" spacing={1.5} sx={{ p: 1.5, alignItems: 'center' }}>
-                <Box sx={{ minWidth: 64, py: 0.5, borderRadius: 2, textAlign: 'center', fontWeight: 800, fontSize: 15,
-                  bgcolor: left === 0 ? 'primary.main' : 'action.hover', color: left === 0 ? 'primary.contrastText' : 'primary.main' }}>
-                  {dLabel(left)}
-                </Box>
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ fontWeight: 700 }} noWrap>{ev.title}</Typography>
-                  <Typography variant="caption" color="text.secondary">{md(on)} {dow(on)}</Typography>
-                </Box>
-              </Stack>
-            </Card>
-          )
-        })}
-        {!upcoming.length && (
-          <Typography variant="body2" color="text.secondary">{tr("일정을 만들 때 '홈에 디데이로 표시'를 켜면 여기에 나와요.")}</Typography>
+      <Box component="section" sx={{ mb: 3 }}>
+        <Stack direction="row" sx={{ alignItems: 'baseline', mb: 1.25 }}>
+          <Typography component="h2" sx={{ fontSize: 17, fontWeight: 750, flex: 1 }}>{isEnglish() ? 'Today' : '오늘의 일정'}</Typography>
+          <Button size="small" onClick={() => openCalendar(today)} endIcon={<ChevronRightIcon size={16} />} sx={{ minHeight: 32, px: 0.5 }}>
+            {isEnglish() ? 'Calendar' : '캘린더'}
+          </Button>
+        </Stack>
+        {!eventsReady && !eventsError ? <Skeleton variant="rounded" height={86} /> : eventsError && !eventsReady ? (
+          <Card sx={{ p: 2 }}><Typography variant="body2" color="text.secondary">{isEnglish() ? 'Could not load your events.' : '일정을 불러오지 못했어요.'}</Typography>
+            <Button size="small" onClick={loadEvents} sx={{ mt: 0.5, px: 0 }}>{isEnglish() ? 'Try again' : '다시 불러오기'}</Button></Card>
+        ) : todayList.length ? (
+          <Card>
+            {todayList.map(({ ev }, i) => <ButtonBase key={ev.id} onClick={() => openCalendar(today)}
+              sx={{ width: '100%', display: 'flex', textAlign: 'left', alignItems: 'center', gap: 1.5, px: 2, py: 1.5,
+                borderTop: i ? 1 : 0, borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' },
+                '&.Mui-focusVisible': { outline: '2px solid var(--mui-palette-primary-main)', outlineOffset: -3 } }}>
+              <Box sx={{ width: 4, alignSelf: 'stretch', minHeight: 32, borderRadius: 1, bgcolor: colorOf(ev.created_by) }} />
+              <Box sx={{ minWidth: 0, flex: 1 }}><Typography noWrap sx={{ fontWeight: 700 }}>{ev.title}</Typography>
+                <Typography variant="body2" color="text.secondary">{ev.all_day ? tr('하루 종일') : hm(new Date(ev.start_at))}</Typography></Box>
+              <Box sx={{ color: 'text.disabled', lineHeight: 0 }}><ChevronRightIcon size={18} /></Box>
+            </ButtonBase>)}
+          </Card>
+        ) : (
+          <ButtonBase onClick={() => openCalendar(today)} sx={{ width: '100%', borderRadius: '14px', textAlign: 'left', justifyContent: 'space-between',
+            bgcolor: 'background.paper', border: 1, borderColor: 'divider', px: 2, py: 2, gap: 1,
+            '&:hover': { bgcolor: 'action.hover' }, '&.Mui-focusVisible': { outline: '2px solid var(--mui-palette-primary-main)', outlineOffset: 2 } }}>
+            <Box><Typography sx={{ fontWeight: 700 }}>{isEnglish() ? 'A little room to breathe' : '오늘은 여유로운 하루예요'}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>{isEnglish() ? 'Open the calendar to add a plan.' : '캘린더에서 새로운 일정을 추가해 보세요.'}</Typography></Box>
+            <Box sx={{ color: 'text.disabled', lineHeight: 0 }}><ChevronRightIcon size={18} /></Box>
+          </ButtonBase>
         )}
-      </Stack>
+      </Box>
 
-      {/* 이번 주 */}
-      <Typography component="h2" sx={{ fontWeight: 700, mb: 1 }}>{tr("이번 주")}</Typography>
-      <Card>
-        {days.map((k, i) => {
-          const list = byDay.get(k) ?? []
-          const hol = tr(holidayName(k) ?? '')
-          const isToday = k === today
-          return (
-            <Stack key={k} direction="row" spacing={1.5} sx={{ px: 1.5, py: 1.25, alignItems: 'flex-start',
-              borderTop: i ? 1 : 0, borderColor: 'divider', bgcolor: isToday ? 'action.hover' : 'transparent', opacity: k < today ? 0.5 : 1 }}>
-              <Box sx={{ width: 40, textAlign: 'center', flexShrink: 0 }}>
-                <Typography variant="caption" sx={{ color: hol || i === SUN ? 'error.main' : i === SAT ? 'info.main' : 'text.secondary', fontWeight: 600 }}>{isEnglish() ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i] : WEEK[i]}</Typography>
-                <Typography sx={{ fontWeight: isToday ? 800 : 600, lineHeight: 1.2,
-                  color: isToday ? 'primary.main' : hol ? 'error.main' : 'text.primary' }}>{+k.slice(8)}</Typography>
-              </Box>
-              <Stack spacing={0.5} sx={{ flex: 1, minWidth: 0, pt: 0.25 }}>
-                {hol && <Typography variant="body2" sx={{ fontWeight: 700, color: 'error.main' }}>{hol}</Typography>}
-                {list.map(({ ev }) => (
-                  <Stack key={ev.id} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: colorOf(ev.created_by), flexShrink: 0 }} />
-                    <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>{ev.title}</Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>{ev.all_day ? tr('종일') : hm(new Date(ev.start_at))}</Typography>
-                  </Stack>
-                ))}
-                {!list.length && !hol && <Typography variant="body2" color="text.disabled">{tr("일정 없음")}</Typography>}
+      <Box component="section" sx={{ mb: 3 }}>
+        <Typography component="h2" sx={{ fontSize: 17, fontWeight: 750, mb: 1.25 }}>{isEnglish() ? 'Coming up' : '다가오는 날'}</Typography>
+        {!eventsReady && !eventsError ? <Skeleton variant="rounded" height={72} /> : !eventsReady ? null : upcoming.length ? (
+          <Card>{upcoming.map(({ ev, on }, i) => {
+            const left = dayDiff(today, on)
+            return <ButtonBase key={ev.id} onClick={() => openCalendar(on)} sx={{ width: '100%', display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 1.5,
+              textAlign: 'left', borderTop: i ? 1 : 0, borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' },
+              '&.Mui-focusVisible': { outline: '2px solid var(--mui-palette-primary-main)', outlineOffset: -3 } }}>
+              <Typography sx={{ minWidth: 56, color: 'primary.main', fontSize: 15, fontWeight: 750, fontVariantNumeric: 'tabular-nums' }}>{dLabel(left)}</Typography>
+              <Box sx={{ minWidth: 0, flex: 1 }}><Typography noWrap sx={{ fontWeight: 700 }}>{ev.title}</Typography>
+                <Typography variant="body2" color="text.secondary">{md(on)} {dow(on)}</Typography></Box>
+              <Box sx={{ color: 'text.disabled', lineHeight: 0 }}><ChevronRightIcon size={18} /></Box>
+            </ButtonBase>
+          })}</Card>
+        ) : <Typography variant="body2" color="text.secondary" sx={{ px: 0.25 }}>{tr("일정을 만들 때 '홈에 디데이로 표시'를 켜면 여기에 나와요.")}</Typography>}
+      </Box>
+
+      <Box component="section">
+        <Stack direction="row" sx={{ alignItems: 'baseline', mb: 1.25 }}>
+          <Typography component="h2" sx={{ fontSize: 17, fontWeight: 750, flex: 1 }}>{tr('이번 주')}</Typography>
+          <Button size="small" onClick={() => openCalendar(today)} endIcon={<ChevronRightIcon size={16} />} sx={{ minHeight: 32, px: 0.5 }}>{isEnglish() ? 'View calendar' : '캘린더 보기'}</Button>
+        </Stack>
+        <Card sx={{ p: 1 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}>
+            {days.map((day, i) => {
+              const isToday = day === today, hasEvents = (byDay.get(day)?.length ?? 0) > 0
+              const name = isEnglish() ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i] : WEEK[i]
+              return <ButtonBase key={day} onClick={() => openCalendar(day)} aria-label={new Date(day + 'T00:00').toLocaleDateString(locale(), { month: 'long', day: 'numeric', weekday: 'long' })}
+                sx={{ minWidth: 0, minHeight: 68, borderRadius: '10px', flexDirection: 'column', gap: 0.5, bgcolor: isToday ? 'action.selected' : 'transparent',
+                  '&:hover': { bgcolor: 'action.hover' }, '&.Mui-focusVisible': { outline: '2px solid var(--mui-palette-primary-main)', outlineOffset: -2 } }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>{name}</Typography>
+                <Typography sx={{ fontSize: 16, lineHeight: 1.2, fontWeight: isToday ? 750 : 600, color: isToday ? 'primary.main' : 'text.primary' }}>{+day.slice(8)}</Typography>
+                <Box sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: hasEvents ? 'primary.main' : 'transparent' }} />
+              </ButtonBase>
+            })}
+          </Box>
+          {eventsReady && weekWithEvents.length > 0 && <Box sx={{ mt: 0.75, pt: 0.75, borderTop: 1, borderColor: 'divider' }}>
+            {weekWithEvents.map(day => <ButtonBase key={day} onClick={() => openCalendar(day)} sx={{ width: '100%', px: 1, py: 1,
+              borderRadius: 1, display: 'flex', alignItems: 'flex-start', gap: 1, textAlign: 'left', '&:hover': { bgcolor: 'action.hover' },
+              '&.Mui-focusVisible': { outline: '2px solid var(--mui-palette-primary-main)', outlineOffset: -2 } }}>
+              <Typography variant="body2" color="text.secondary" sx={{ width: 48, flexShrink: 0 }}>{+day.slice(5, 7)}/{+day.slice(8)}</Typography>
+              <Stack spacing={0.5} sx={{ flex: 1, minWidth: 0 }}>
+                {holidayName(day) && <Typography variant="body2" color="error.main" noWrap>{tr(holidayName(day)!)}</Typography>}
+                {(byDay.get(day) ?? []).map(({ ev }) => <Stack key={ev.id} direction="row" spacing={0.75} sx={{ alignItems: 'center', minWidth: 0 }}>
+                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: colorOf(ev.created_by), flexShrink: 0 }} />
+                  <Typography variant="body2" noWrap sx={{ fontWeight: 600, minWidth: 0, flex: 1 }}>{ev.title}</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>{ev.all_day ? tr('종일') : hm(new Date(ev.start_at))}</Typography>
+                </Stack>)}
               </Stack>
-            </Stack>
-          )
-        })}
-      </Card>
+            </ButtonBase>)}
+          </Box>}
+        </Card>
+      </Box>
 
       {editing && <StartDialog value={startedOn ?? ''} onClose={() => setEditing(false)} onSave={saveStart} onEditCover={editCover} />}
       {pickingCover && <ImageFitDialog title={tr("메인 카드 배경")} ratio={coverRatio} max={1600} prefix={`${coupleId}/cover`}

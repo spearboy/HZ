@@ -38,11 +38,15 @@ export function WeatherFx({ code }: { code: number }) {
   )
 }
 
-export default function WeatherCard({ w }: { w: Weather | null | undefined }) {
-  if (w === undefined) return <Skeleton variant="rounded" height={68} sx={{ mb: 3, borderRadius: '18px' }} />
+export default function WeatherCard({ w, compact = false }: { w: Weather | null | undefined; compact?: boolean }) {
+  if (w === undefined) return compact ? <Skeleton variant="rounded" width={76} height={34} /> : <Skeleton variant="rounded" height={68} sx={{ mb: 3, borderRadius: '18px' }} />
   if (w === null) return null // 날씨를 못 받아오면 자리만 비운다
 
   const Icon = icon(w.code)
+  if (compact) return <Stack direction="row" spacing={0.75} aria-label={`${isEnglish() ? 'Seoul' : '서울'} · ${tr(weatherText(w.code))} ${w.temp}°`}
+    sx={{ alignItems: 'center', color: 'text.secondary', flexShrink: 0 }}>
+    <Icon size={18} /><Typography variant="body2" sx={{ fontWeight: 650, color: 'text.primary' }}>{w.temp}°</Typography>
+  </Stack>
   return (
     <Card sx={{ mb: 3 }}>
       <Stack direction="row" spacing={1.5} sx={{ p: 1.75, alignItems: 'center' }}>

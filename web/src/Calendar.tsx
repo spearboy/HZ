@@ -27,9 +27,9 @@ const md = (k: string) => `${+k.slice(5, 7)}/${+k.slice(8)}`
 const VIEW_KEY = 'dayView'
 const HOUR_PX = 54
 
-type CalendarProps = Pick<TabProps, 'coupleId' | 'userId' | 'active' | 'eventVersion' | 'photoVersion' | 'notify' | 'colorOf'>
+type CalendarProps = Pick<TabProps, 'coupleId' | 'userId' | 'active' | 'eventVersion' | 'photoVersion' | 'notify' | 'colorOf'> & { target: { date: string; id: number } | null }
 
-function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify, colorOf }: CalendarProps) {
+function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify, colorOf, target }: CalendarProps) {
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
   const [events, setEvents] = useState<Event[]>([])
   const [photos, setPhotos] = useState<Photo[]>([])
@@ -54,6 +54,12 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
     setView(v)
     try { localStorage.setItem(VIEW_KEY, v) } catch { /* 저장 못 해도 이번 세션엔 적용된다 */ }
   }
+  useEffect(() => {
+    if (!target) return
+    const [year, monthNumber] = target.date.split('-').map(Number)
+    setSelected(target.date)
+    setMonth(new Date(year, monthNumber - 1, 1))
+  }, [target])
 
   // 6주 고정 그리드: 그 달 1일이 속한 주의 일요일부터 42일
   const gridStart = new Date(month.getFullYear(), month.getMonth(), 1 - month.getDay())
@@ -127,11 +133,11 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
   if (!eventsReady || !photosReady) return <CalendarSkeleton />
 
   return (
-    <Box sx={{ p: 2, pb: 12 }}>
-      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', mb: 1.5, px: 0.5 }}>
+    <Box sx={{ px: 2, pt: 3, pb: 12 }}>
+      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', mb: 2, px: 0.5 }}>
         <Box sx={{ flex: 1 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>{month.getFullYear()}</Typography>
-          <Typography variant="h4" sx={{ fontWeight: 800, lineHeight: 1.1 }}>{month.toLocaleDateString(locale(), { month: 'long' })}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{month.getFullYear()}</Typography>
+          <Typography component="h1" sx={{ fontSize: 28, fontWeight: 750, letterSpacing: '-.04em', lineHeight: 1.2 }}>{month.toLocaleDateString(locale(), { month: 'long' })}</Typography>
         </Box>
         {!isThisMonth && <Button size="small" variant="outlined" onClick={goToday}>{tr("오늘")}</Button>}
         <IconButton aria-label={tr("이전 달")} onClick={() => shift(-1)}><ChevronLeftIcon size={22} /></IconButton>
@@ -139,7 +145,7 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
       </Stack>
 
       {/* 좌우 스와이프로 달 이동. 세로 스크롤과 헷갈리지 않게 가로 이동이 더 클 때만 */}
-      <Card sx={{ p: 1, overflow: 'hidden' }}
+      <Card sx={{ p: 1, overflow: 'hidden', borderRadius: '16px' }}
         onTouchStart={(e) => { touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY } }}
         onTouchEnd={(e) => {
           if (!touch.current) return
@@ -150,7 +156,7 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
         }}>
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}>
           {WEEK.map((w, i) => (
-            <Typography key={w} variant="caption" sx={{ textAlign: 'center', py: 0.5, fontWeight: 600, color: i === 0 ? 'error.main' : i === 6 ? 'info.main' : 'text.secondary' }}>{isEnglish() ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][i] : w}</Typography>
+            <Typography key={w} variant="caption" sx={{ textAlign: 'center', py: 1, fontWeight: 600, color: i === 0 ? 'error.main' : i === 6 ? 'info.main' : 'text.secondary' }}>{isEnglish() ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][i] : w}</Typography>
           ))}
         </Box>
         <Box key={ymd(month)} sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
@@ -181,7 +187,7 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
                   {d.getDate()}
                 </Box>
                 {hol && (
-                  <Typography sx={{ fontSize: 9, lineHeight: '11px', px: 0.25, textAlign: 'center', fontWeight: 700,
+                  <Typography sx={{ fontSize: 10, lineHeight: '12px', px: 0.25, textAlign: 'center', fontWeight: 700,
                     color: 'error.main', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{hol}</Typography>
                 )}
                 {photoDays.has(k) && <Box sx={{ position: 'absolute', top: 4, right: 3, color: 'text.secondary', lineHeight: 0 }}><CameraIcon size={11} /></Box>}
@@ -206,7 +212,7 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
         </Box>
       </Card>
 
-      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 3, mb: 1.5 }}>
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 3.5, mb: 1.5 }}>
         <Typography variant="h6" component="h2" sx={{ flex: 1, minWidth: 0 }} noWrap>
           {new Date(`${selected}T00:00`).toLocaleDateString(locale(), { month: 'long', day: 'numeric' })} <Typography component="span" color="text.secondary" sx={{ fontWeight: 500 }}>{selectedDow}</Typography>
           {holidayName(selected) && <Typography component="span" color="error.main" sx={{ fontWeight: 700, ml: 0.75, fontSize: 14 }}>{tr(holidayName(selected)!)}</Typography>}
@@ -257,8 +263,8 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
       </Stack>
       )}
 
-      <Stack direction="row" sx={{ alignItems: 'center', mt: 3, mb: 1 }}>
-        <Typography component="h2" sx={{ fontWeight: 700, flex: 1 }}>{tr("이날의 사진")}</Typography>
+      <Stack direction="row" sx={{ alignItems: 'center', mt: 3.5, mb: 1 }}>
+        <Typography component="h2" sx={{ fontSize: 17, fontWeight: 700, flex: 1 }}>{tr("이날의 사진")}</Typography>
         <Button component="label" size="small" startIcon={<ImageIcon size={18} />} disabled={uploading}>
           {uploading ? tr('올리는 중…') : tr("사진 올리기")}
           <input type="file" accept="image/*" multiple hidden onChange={(e) => e.target.files && upload(e.target.files)} />
@@ -267,7 +273,7 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
       <PhotoGrid photos={dayPhotos} userId={userId} onChanged={loadPhotos} onError={notify} />
 
       <Fab color="primary" aria-label={tr("일정 추가")} onClick={() => setEditing('new')}
-        sx={{ position: 'fixed', right: 20, bottom: 'calc(88px + env(safe-area-inset-bottom))', boxShadow: '0 6px 18px #30214d30',
+        sx={{ position: 'fixed', right: 'max(20px, calc((100vw - 640px) / 2 + 20px))', bottom: 'calc(88px + env(safe-area-inset-bottom))', boxShadow: '0 6px 18px #30214d30',
           transition: 'transform 240ms cubic-bezier(.2,.8,.2,1), box-shadow 180ms', '&:active': { transform: 'scale(.92)', boxShadow: 'none' },
           '@media (prefers-reduced-motion: reduce)': { transition: 'none', '&:active': { transform: 'none' } } }}>
         <PlusIcon size={26} />

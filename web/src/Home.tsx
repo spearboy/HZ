@@ -36,6 +36,7 @@ export const avatarFit = (p: Profile): Fit =>
 export type TabProps = {
   coupleId: string; userId: string; active: boolean; eventVersion: number; photoVersion: number; coupleVersion: number; notify: (m: string) => void
   profiles: Profile[]; colorOf: (userId: string) => string; reloadProfiles: () => void; onLeft: () => void
+  openCalendar: (date: string) => void
 }
 
 // 색을 아직 안 골랐으면 나 = 분홍, 상대 = 파랑
@@ -47,6 +48,7 @@ export default function Home({ coupleId, userId, onLeft }: { coupleId: string; u
   const [photoVersion, setPhotoVersion] = useState(0)
   const [coupleVersion, setCoupleVersion] = useState(0)
   const [visited, setVisited] = useState<Set<number>>(() => new Set([0]))
+  const [calendarTarget, setCalendarTarget] = useState<{ date: string; id: number } | null>(null)
   const [toast, setToast] = useState('')
   const [profiles, setProfiles] = useState<Profile[]>([])
   const profileLoadId = useRef(0)
@@ -88,7 +90,12 @@ export default function Home({ coupleId, userId, onLeft }: { coupleId: string; u
   }, [coupleId, userId, reloadProfiles])
 
   const colorOf = useCallback((id: string) => profiles.find((p) => p.id === id)?.color ?? (id === userId ? DEFAULT_COLORS.me : DEFAULT_COLORS.partner), [profiles, userId])
-  const props = { coupleId, userId, eventVersion, photoVersion, coupleVersion, notify: setToast, profiles, colorOf, reloadProfiles, onLeft }
+  const openCalendar = useCallback((date: string) => {
+    setCalendarTarget(prev => ({ date, id: (prev?.id ?? 0) + 1 }))
+    setVisited(prev => new Set(prev).add(1))
+    setTab(1)
+  }, [])
+  const props = { coupleId, userId, eventVersion, photoVersion, coupleVersion, notify: setToast, profiles, colorOf, reloadProfiles, onLeft, openCalendar }
 
   return (
     <Box sx={{ minHeight: '100dvh', pb: 'calc(72px + env(safe-area-inset-bottom))', bgcolor: 'background.default' }}>
@@ -98,7 +105,7 @@ export default function Home({ coupleId, userId, onLeft }: { coupleId: string; u
           <Suspense fallback={SKELETON[i]}>
             {i === 0 && <Summary {...props} active={tab === i} />}
             {i === 1 && <Calendar coupleId={coupleId} userId={userId} eventVersion={eventVersion} photoVersion={photoVersion}
-              notify={setToast} colorOf={colorOf} active={tab === i} />}
+              notify={setToast} colorOf={colorOf} active={tab === i} target={calendarTarget} />}
             {i === 2 && <Album {...props} active={tab === i} />}
             {i === 3 && <Settings {...props} active={tab === i} />}
           </Suspense>
@@ -106,7 +113,13 @@ export default function Home({ coupleId, userId, onLeft }: { coupleId: string; u
       ))}
 
       <Paper elevation={0} sx={{ position: 'fixed', left: 0, right: 0, bottom: 0, borderRadius: 0, borderTop: 1, borderColor: 'divider',
-        pb: 'env(safe-area-inset-bottom)', bgcolor: 'background.paper' }}>
+        zIndex: 1100, pb: 'env(safe-area-inset-bottom)', bgcolor: 'background.paper',
+        '@supports (backdrop-filter: blur(16px))': {
+          bgcolor: 'color-mix(in srgb, var(--mui-palette-background-paper) 82%, transparent)',
+          backdropFilter: 'blur(18px) saturate(140%)',
+        },
+        '@media (prefers-reduced-transparency: reduce)': { bgcolor: 'background.paper', backdropFilter: 'none' },
+        '@media (forced-colors: active)': { bgcolor: 'Canvas', backdropFilter: 'none' } }}>
         <BottomNavigation showLabels value={tab} onChange={(_, v) => { setVisited(prev => new Set(prev).add(v)); setTab(v) }} sx={{ bgcolor: 'transparent', maxWidth: 640, mx: 'auto', height: 68,
           '& .MuiBottomNavigationAction-root': { minWidth: 0, gap: 0.5, color: 'text.secondary' },
           '& .MuiBottomNavigationAction-label': { fontSize: 11, fontWeight: 600 },
