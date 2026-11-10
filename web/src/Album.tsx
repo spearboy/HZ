@@ -1,11 +1,12 @@
 import { isEnglish, locale, tr } from './language'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Box, Stack, Typography } from '@mui/material'
-import { ImageIcon } from '@animateicons/react/lucide'
+import { Box, Button, Card, Stack, Typography } from '@mui/material'
+import { ImageIcon, ChevronRightIcon } from '@animateicons/react/lucide'
 import { koError, supabase } from './supabase'
 import { PHOTO_COLUMNS, PhotoGrid, withThumbs, type Photo } from './Photos'
 import type { TabProps } from './Home'
 import { GridSkeleton } from './Skeletons'
+import { ymd } from './repeat'
 
 // shortcut: 최근 300장만 불러온다. 사진이 많아지면 월 단위 무한 스크롤로 바꾼다
 const LIMIT = 300
@@ -21,8 +22,9 @@ const writeRows = (coupleId: string, rows: Photo[]) => {
   try { localStorage.setItem(cacheKey(coupleId), JSON.stringify(rows)) } catch { /* 용량 초과면 캐시 없이 간다 */ }
 }
 
-export default function Album({ coupleId, userId, active, photoVersion, notify }: TabProps) {
+export default function Album({ coupleId, userId, active, photoVersion, notify, openCalendar }: TabProps) {
   const [photos, setPhotos] = useState<Photo[] | null>(null)
+  const [failed, setFailed] = useState(false)
   const loadId = useRef(0)
   const lastVersion = useRef(-1)
   const fetchedAt = useRef(0)
@@ -40,11 +42,12 @@ export default function Album({ coupleId, userId, active, photoVersion, notify }
     const { data, error } = await supabase.from('photos').select(PHOTO_COLUMNS)
       .order('photo_date', { ascending: false }).order('created_at', { ascending: false }).limit(LIMIT)
     if (id !== loadId.current) return
-    if (error) { lastVersion.current = -1; return notify(koError(error)) }
+    if (error) { lastVersion.current = -1; setFailed(true); return notify(koError(error)) }
     writeRows(coupleId, data)
     const rows = await withThumbs(data)
     if (id !== loadId.current) return
     serverApplied = true
+    setFailed(false)
     fetchedAt.current = Date.now()
     setPhotos(rows)
   }, [coupleId, notify])
@@ -57,7 +60,7 @@ export default function Album({ coupleId, userId, active, photoVersion, notify }
     load(first)
   }, [active, load, photoVersion])
 
-  if (photos === null) return <GridSkeleton />
+  if (photos === null && !failed) return <GridSkeleton />
 
   // 월별로 묶는다 (photo_date 내림차순이라 순서가 유지된다)
   const months = new Map<string, Photo[]>()
@@ -67,18 +70,32 @@ export default function Album({ coupleId, userId, active, photoVersion, notify }
   }
 
   return (
-    <Box sx={{ p: 2 }}>
-      <Typography variant="h5" sx={{ mb: 2 }}>{tr("앨범")}</Typography>
+    <Box sx={{ px: 2, pt: 3, pb: 4 }}>
+      <Box sx={{ mb: 3 }}>
+        <Typography component="h1" sx={{ fontSize: 25, fontWeight: 750, letterSpacing: '-.04em', lineHeight: 1.2 }}>{tr('앨범')}</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{isEnglish() ? 'The moments we saved together' : '함께 보낸 순간을 모아두었어요'}</Typography>
+      </Box>
+      {failed && photos === null && <Card sx={{ p: 2 }}>
+        <Typography variant="body2" color="text.secondary">{isEnglish() ? 'Could not load your photos.' : '사진을 불러오지 못했어요.'}</Typography>
+        <Button size="small" onClick={() => load(false)} sx={{ mt: 0.5, px: 0 }}>{isEnglish() ? 'Try again' : '다시 불러오기'}</Button>
+      </Card>}
       {photos?.length === 0 && (
-        <Stack spacing={1} sx={{ alignItems: 'center', py: 8, color: 'text.secondary' }}>
-          <ImageIcon size={48} />
-          <Typography>{tr("아직 사진이 없어요. 캘린더에서 날짜를 골라 올려 보세요.")}</Typography>
-        </Stack>
+        <Card sx={{ p: 3, minHeight: 220, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center' }}>
+          <Box sx={{ color: 'primary.main', lineHeight: 0, mb: 2 }}><ImageIcon size={26} /></Box>
+          <Typography sx={{ fontSize: 17, fontWeight: 700 }}>{isEnglish() ? 'Your first moment together' : '우리의 첫 순간을 남겨보세요'}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.6 }}>{tr('아직 사진이 없어요. 캘린더에서 날짜를 골라 올려 보세요.')}</Typography>
+          <Button onClick={() => openCalendar(ymd(new Date()))} endIcon={<ChevronRightIcon size={16} />} sx={{ mt: 1.5, px: 0 }}>
+            {isEnglish() ? 'Open calendar' : '캘린더로 가기'}
+          </Button>
+        </Card>
       )}
       <Stack spacing={3}>
         {[...months].map(([ym, list]) => (
           <Box key={ym}>
-            <Typography sx={{ fontWeight: 700, mb: 1 }}>{new Date(`${ym}-01T00:00`).toLocaleDateString(locale(), { year: 'numeric', month: 'long' })} <Typography component="span" color="text.secondary">· {list.length}{isEnglish() ? ' photos' : '장'}</Typography></Typography>
+            <Stack direction="row" sx={{ alignItems: 'baseline', gap: 1, mb: 1.25 }}>
+              <Typography component="h2" sx={{ fontSize: 17, fontWeight: 700, flex: 1 }}>{new Date(`${ym}-01T00:00`).toLocaleDateString(locale(), { year: 'numeric', month: 'long' })}</Typography>
+              <Typography variant="caption" color="text.secondary">{list.length}{isEnglish() ? ' photos' : '장'}</Typography>
+            </Stack>
             <PhotoGrid photos={list} userId={userId} onChanged={() => load(false)} onError={notify} />
           </Box>
         ))}

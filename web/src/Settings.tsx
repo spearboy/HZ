@@ -96,8 +96,8 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
   return (
     <Box sx={{ px: 2, pt: 3, pb: 4 }}>
       <Box sx={{ mb: 3 }}>
-        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '.12em' }}>MORO</Typography>
-        <Typography variant="h5">{tr('설정')}</Typography>
+        <Typography component="h1" sx={{ fontSize: 25, fontWeight: 750, letterSpacing: '-.04em', lineHeight: 1.2 }}>{tr('설정')}</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{isEnglish() ? 'Make MORO feel like yours' : '우리에게 맞게 MORO를 설정해요'}</Typography>
       </Box>
 
       <SettingsSection title={isEnglish() ? 'Our profiles' : '우리의 프로필'}>
@@ -222,7 +222,7 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
 
 function SettingsSection({ title, children }: { title: string; children: React.ReactNode }) {
   return <Box component="section" sx={{ mb: 3 }}>
-    <Typography component="h2" sx={{ fontSize: 14, fontWeight: 700, mb: 1, px: 0.25 }}>{title}</Typography>
+    <Typography component="h2" sx={{ fontSize: 17, fontWeight: 700, mb: 1.25, px: 0.25 }}>{title}</Typography>
     {children}
   </Box>
 }
