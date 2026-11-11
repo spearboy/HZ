@@ -11,7 +11,6 @@
     "test": "node test/ics.test.ts && node test/repeat.test.ts && node test/photoUpload.test.ts && node test/holidays.test.ts && node test/weather.test.ts"
   },
   "dependencies": {
-    "@animateicons/react": "^0.13.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/material": "^9.5.0",

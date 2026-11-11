@@ -9,11 +9,16 @@ export type Weather = { temp: number; code: number; max: number; min: number; po
 const KEY = 'weather'
 const FRESH = 10 * 60 * 1000
 let pending: Promise<Weather | null> | null = null
+let retryAfter = 0
 
 // 탭을 오갈 때마다 다시 부르지 않게 10분 캐시
 export function getWeather(): Promise<Weather | null> {
   if (pending) return pending
-  pending = loadWeather().finally(() => { pending = null })
+  if (Date.now() < retryAfter) return Promise.resolve(null)
+  pending = loadWeather().then(result => {
+    if (!result) retryAfter = Date.now() + 60_000
+    return result
+  }).finally(() => { pending = null })
   return pending
 }
 

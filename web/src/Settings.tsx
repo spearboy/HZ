@@ -1,20 +1,22 @@
 import { tr } from './language'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import {
   Box, Button, ButtonBase, Card, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
   List, ListItem, ListItemAvatar, ListItemButton, ListItemIcon, ListItemText, Switch, TextField, Typography, useTheme,
 } from '@mui/material'
 import {
   BellIcon, CameraIcon, CheckIcon, CalendarPlusIcon, ChevronRightIcon, DropletIcon, ImageIcon, LogOutIcon, UnlinkIcon,
-} from '@animateicons/react/lucide'
+} from './icons'
 import { auth, koError, supabase } from './supabase'
 import { enablePush, pushEnabled, pushSupported } from './push'
 import ImportIcs from './ImportIcs'
 import { signedUrl } from './Photos'
-import ImageFitDialog, { DEFAULT_FIT, FitAvatar, type Fit } from './ImageFit'
+import { DEFAULT_FIT, FitAvatar, type Fit } from './imageFitView'
 import { fxOn, setFxOn } from './GlassFx'
 import { avatarFit, type TabProps } from './Home'
 import { isEnglish, useLanguage } from './language'
+
+const ImageFitDialog = lazy(() => import('./ImageFit'))
 
 const PALETTE = ['#ff6b8b', '#ff7a59', '#f59f00', '#40c057', '#12b886', '#15aabf', '#5b8def', '#7950f2', '#be4bdb', '#868e96']
 
@@ -94,13 +96,13 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
   }
 
   return (
-    <Box sx={{ px: 2, pt: 3, pb: 4 }}>
-      <Box sx={{ mb: 3 }}>
+    <Box className="screen settings-screen">
+      <Box className="screen-heading">
         <Typography component="h1" sx={{ fontSize: 25, fontWeight: 750, letterSpacing: '-.04em', lineHeight: 1.2 }}>{tr('설정')}</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{isEnglish() ? 'Make MORO feel like yours' : '우리에게 맞게 MORO를 설정해요'}</Typography>
       </Box>
 
-      <SettingsSection title={isEnglish() ? 'Our profiles' : '우리의 프로필'}>
+      <SettingsSection title={isEnglish() ? 'Our profiles' : '우리의 프로필'} description={isEnglish() ? 'The names, photos and colors that make this space ours.' : '우리의 이름과 사진, 일정에 쓰일 색상을 정해요.'}>
         <Card>
           <List disablePadding>
             {[me, partner].map((p, i) => p && (
@@ -139,7 +141,7 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
         </Card>
       </SettingsSection>
 
-      <SettingsSection title={isEnglish() ? 'App preferences' : '앱 설정'}>
+      <SettingsSection title={isEnglish() ? 'App preferences' : '앱 설정'} description={isEnglish() ? 'Choose your language, reminders and home card.' : '편한 언어와 알림, 홈 카드의 분위기를 설정해요.'}>
         <Card>
           <Box sx={{ px: 2, py: 2, borderBottom: 1, borderColor: 'divider' }}>
             <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>{isEnglish() ? 'Language' : '언어'}</Typography>
@@ -170,7 +172,7 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
         </Card>
       </SettingsSection>
 
-      <SettingsSection title={isEnglish() ? 'Calendar & account' : '캘린더 및 계정'}>
+      <SettingsSection title={isEnglish() ? 'Calendar & account' : '캘린더 및 계정'} description={isEnglish() ? 'Bring existing plans into MORO and manage your connection.' : '기존 일정을 가져오고 계정 연결을 관리해요.'}>
         <Card>
           <List disablePadding sx={{ '& .MuiListItemIcon-root': { minWidth: 38, color: 'text.secondary' },
             '& .MuiListItemText-primary': { fontSize: 15, fontWeight: 650 }, '& .MuiListItemText-secondary': { mt: 0.25, fontSize: 12, lineHeight: 1.5 } }}>
@@ -193,15 +195,15 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
         </Card>
       </SettingsSection>
 
-      {picking === 'avatar' && me && (
+      {picking === 'avatar' && me && (<Suspense fallback={null}>
         <ImageFitDialog title={tr("내 프로필 사진")} round ratio={1} max={400} prefix={`${coupleId}/avatar`}
           url={me.avatarUrl ?? null} path={me.avatar_path} fit={avatarFit(me)}
-          onClose={() => setPicking(null)} onSave={saveAvatar} onError={notify} />
+          onClose={() => setPicking(null)} onSave={saveAvatar} onError={notify} /></Suspense>
       )}
-      {picking === 'cover' && (
+      {picking === 'cover' && (<Suspense fallback={null}>
         <ImageFitDialog title={tr("메인 카드 배경")} ratio={16 / 9} max={1600} prefix={`${coupleId}/cover`}
           url={cover.url} path={cover.path} fit={cover.fit}
-          onClose={() => setPicking(null)} onSave={saveCover} onError={notify} />
+          onClose={() => setPicking(null)} onSave={saveCover} onError={notify} /></Suspense>
       )}
 
       <Dialog open={leaving} onClose={() => setLeaving(false)}>
@@ -220,9 +222,10 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
   )
 }
 
-function SettingsSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return <Box component="section" sx={{ mb: 3 }}>
-    <Typography component="h2" sx={{ fontSize: 17, fontWeight: 700, mb: 1.25, px: 0.25 }}>{title}</Typography>
+function SettingsSection({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+  return <Box component="section" className="settings-section">
+    <Box component="header" sx={{ mb: 2 }}><Typography component="h2" sx={{ fontSize: 17, fontWeight: 700, mb: 0.75 }}>{title}</Typography>
+      <Typography variant="body2" color="text.secondary">{description}</Typography></Box>
     {children}
   </Box>
 }

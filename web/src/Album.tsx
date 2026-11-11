@@ -1,7 +1,7 @@
 import { isEnglish, locale, tr } from './language'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Box, Button, Card, Stack, Typography } from '@mui/material'
-import { ImageIcon, ChevronRightIcon } from '@animateicons/react/lucide'
+import { ImageIcon, ChevronRightIcon } from './icons'
 import { koError, supabase } from './supabase'
 import { PHOTO_COLUMNS, PhotoGrid, withThumbs, type Photo } from './Photos'
 import type { TabProps } from './Home'
@@ -66,12 +66,14 @@ export default function Album({ coupleId, userId, active, photoVersion, notify, 
   const months = new Map<string, Photo[]>()
   for (const p of photos ?? []) {
     const k = p.photo_date.slice(0, 7)
-    months.set(k, [...(months.get(k) ?? []), p])
+    const rows = months.get(k)
+    if (rows) rows.push(p)
+    else months.set(k, [p])
   }
 
   return (
-    <Box sx={{ px: 2, pt: 3, pb: 4 }}>
-      <Box sx={{ mb: 3 }}>
+    <Box className="screen album-screen">
+      <Box className="screen-heading">
         <Typography component="h1" sx={{ fontSize: 25, fontWeight: 750, letterSpacing: '-.04em', lineHeight: 1.2 }}>{tr('앨범')}</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{isEnglish() ? 'The moments we saved together' : '함께 보낸 순간을 모아두었어요'}</Typography>
       </Box>

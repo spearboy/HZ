@@ -1,12 +1,12 @@
 import { isEnglish, locale, tr } from './language'
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
-  Box, Button, ButtonBase, Card, CardActionArea, DialogActions, DialogContent, DialogTitle, Drawer, Fab,
+  Box, Button, ButtonBase, Card, CardActionArea, DialogActions, DialogContent, DialogTitle, Drawer,
   FormControlLabel, IconButton, Stack, Switch, TextField, ToggleButton, ToggleButtonGroup, Typography,
 } from '@mui/material'
 import {
   CameraIcon, ChevronLeftIcon, ChevronRightIcon, ClockIcon, HeartIcon, ImageIcon, ListIcon, PlusIcon,
-} from '@animateicons/react/lucide'
+} from './icons'
 import { keyframes } from '@emotion/react'
 import { koError, supabase } from './supabase'
 import { PHOTO_COLUMNS, PhotoGrid, uploadPhotos, withThumbs, type Photo, type PhotoUpload } from './Photos'
@@ -164,8 +164,8 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
   }
 
   return (
-    <Box sx={{ px: 2, pt: 3, pb: 12 }}>
-      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', mb: 2, px: 0.5 }}>
+    <Box className="screen calendar-screen">
+      <Stack className="screen-heading" direction="row" spacing={0.5} sx={{ alignItems: 'center', mb: 2, px: 0.5 }}>
         <Box sx={{ flex: 1 }}>
           <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{month.getFullYear()}</Typography>
           <Typography component="h1" sx={{ fontSize: 28, fontWeight: 750, letterSpacing: '-.04em', lineHeight: 1.2 }}>{month.toLocaleDateString(locale(), { month: 'long' })}</Typography>
@@ -173,10 +173,12 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
         {!isThisMonth && <Button size="small" variant="outlined" onClick={goToday}>{tr("오늘")}</Button>}
         <IconButton aria-label={tr("이전 달")} onClick={() => shift(-1)}><ChevronLeftIcon size={22} /></IconButton>
         <IconButton aria-label={tr("다음 달")} onClick={() => shift(1)}><ChevronRightIcon size={22} /></IconButton>
+        <Button variant="contained" aria-label={tr("일정 추가")} onClick={() => setEditing('new')} sx={{ minWidth: 44, px: 1.5, ml: 1 }}><PlusIcon size={22} /></Button>
       </Stack>
 
       {/* 좌우 스와이프로 달 이동. 세로 스크롤과 헷갈리지 않게 가로 이동이 더 클 때만 */}
-      <Card sx={{ p: 1, overflow: 'hidden', borderRadius: '16px' }}
+      <Box className="calendar-layout">
+      <Card className="month-grid" sx={{ p: 1, overflow: 'hidden', borderRadius: '16px' }}
         onTouchStart={(e) => { touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY } }}
         onTouchEnd={(e) => {
           if (!touch.current) return
@@ -203,8 +205,8 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
             return (
               <ButtonBase key={k} onClick={() => setSelected(k)} aria-pressed={isSel}
                 aria-label={`${d.toLocaleDateString(locale(), { month: 'long', day: 'numeric' })}${hol ? `, ${hol}` : ''}${list.length ? isEnglish() ? `, ${list.length} events` : `, 일정 ${list.length}개` : ''}${photoDays.has(k) ? isEnglish() ? ', has photos' : ', 사진 있음' : ''}`}
-                sx={{ flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', gap: '2px', py: 0.5, minHeight: 72, borderRadius: '4px',
-                  opacity: d.getMonth() !== month.getMonth() ? 0.35 : 1,
+                sx={{ flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', gap: '2px', py: 0.5, minHeight: { xs: 66, md: 78 }, borderRadius: '4px',
+                  opacity: d.getMonth() !== month.getMonth() ? 0.6 : 1,
                   bgcolor: isSel ? 'color-mix(in srgb, var(--mui-palette-primary-main) 9%, transparent)' : 'transparent',
                   outline: isSel ? '1px solid var(--mui-palette-primary-main)' : 'none', outlineOffset: -1,
                   transition: 'background-color 180ms ease, transform 240ms cubic-bezier(.2,.8,.2,1), outline-color 180ms ease',
@@ -218,7 +220,7 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
                   {d.getDate()}
                 </Box>
                 {hol && (
-                  <Typography sx={{ fontSize: 10, lineHeight: '12px', px: 0.25, textAlign: 'center', fontWeight: 700,
+                  <Typography sx={{ fontSize: 11, lineHeight: '12px', px: 0.25, textAlign: 'center', fontWeight: 700,
                     color: 'error.main', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{hol}</Typography>
                 )}
                 {photoDays.has(k) && <Box sx={{ position: 'absolute', top: 4, right: 3, color: 'text.secondary', lineHeight: 0 }}><CameraIcon size={11} /></Box>}
@@ -227,7 +229,7 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
                   const cont = k !== first && dow !== 0
                   const more = k !== last && dow !== 6
                   return (
-                    <Box key={ev.id} sx={{ height: 15, lineHeight: '15px', fontSize: 10, fontWeight: 600, px: 0.5, overflow: 'hidden', whiteSpace: 'nowrap',
+                    <Box key={ev.id} sx={{ height: 17, lineHeight: '17px', fontSize: 11, fontWeight: 600, px: 0.5, overflow: 'hidden', whiteSpace: 'nowrap',
                       textAlign: 'left', bgcolor: tint(color(ev)), color: ink(color(ev)),
                       borderLeft: cont ? 0 : `3px solid ${color(ev)}`,
                       ml: cont ? 0 : '2px', mr: more ? 0 : '2px',
@@ -236,14 +238,15 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
                     </Box>
                   )
                 })}
-                {list.length > 2 && <Typography sx={{ fontSize: 10, lineHeight: 1.2, color: 'text.secondary', fontWeight: 600 }}>+{list.length - 2}</Typography>}
+                {list.length > 2 && <Typography sx={{ fontSize: 11, lineHeight: 1.2, color: 'text.secondary', fontWeight: 600 }}>+{list.length - 2}</Typography>}
               </ButtonBase>
             )
           })}
         </Box>
       </Card>
 
-      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 3.5, mb: 1.5 }}>
+      <Box className="day-panel">
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
         <Typography variant="h6" component="h2" sx={{ flex: 1, minWidth: 0 }} noWrap>
           {new Date(`${selected}T00:00`).toLocaleDateString(locale(), { month: 'long', day: 'numeric' })} <Typography component="span" color="text.secondary" sx={{ fontWeight: 500 }}>{selectedDow}</Typography>
           {holidayName(selected) && <Typography component="span" color="error.main" sx={{ fontWeight: 700, ml: 0.75, fontSize: 14 }}>{tr(holidayName(selected)!)}</Typography>}
@@ -312,13 +315,11 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
         <Button size="small" disabled={uploading} onClick={() => setFailedUpload(null)}>{isEnglish() ? 'Dismiss' : '닫기'}</Button>
       </Card>}
       <PhotoGrid photos={dayPhotos} userId={userId} onChanged={loadPhotos} onError={notify} />
+      {!dayPhotos.length && <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>{isEnglish() ? 'Keep a little memory of this day.' : '사진으로 이날의 기억을 남겨보세요.'}</Typography>}
 
-      <Fab color="primary" aria-label={tr("일정 추가")} onClick={() => setEditing('new')}
-        sx={{ position: 'fixed', right: 'max(20px, calc((100vw - 640px) / 2 + 20px))', bottom: 'calc(88px + env(safe-area-inset-bottom))', boxShadow: '0 6px 18px #30214d30',
-          transition: 'transform 240ms cubic-bezier(.2,.8,.2,1), box-shadow 180ms', '&:active': { transform: 'scale(.92)', boxShadow: 'none' },
-          '@media (prefers-reduced-motion: reduce)': { transition: 'none', '&:active': { transform: 'none' } } }}>
-        <PlusIcon size={26} />
-      </Fab>
+      </Box>
+      </Box>
+
 
       {editing && (
         <EventDialog key={editing === 'new' ? 'new' : editing.id} event={editing === 'new' ? null : editing} date={selected}
@@ -484,7 +485,7 @@ function Timetable({ date, list, color, onPick, onAdd }: {
                 px: 0.75, py: 0.4, borderRadius: 2, textAlign: 'left',
                 bgcolor: tint(color(s.ev)), color: ink(color(s.ev)), borderLeft: `3px solid ${color(s.ev)}` }}>
               <Typography sx={{ fontSize: 12, fontWeight: 700, lineHeight: 1.2, width: '100%' }} noWrap>{s.ev.title}</Typography>
-              <Typography sx={{ fontSize: 10, opacity: 0.8, lineHeight: 1.2 }}>
+              <Typography sx={{ fontSize: 11, opacity: 0.8, lineHeight: 1.2 }}>
                 {hm(new Date(s.ev.start_at))}{s.ev.end_at && ` ~ ${hm(new Date(s.ev.end_at))}`}
               </Typography>
             </ButtonBase>

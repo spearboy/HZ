@@ -1,0 +1,50 @@
+:root { --moro-feature: #eee9f7; }
+[data-dark] { --moro-feature: #2b2636; }
+body { -webkit-font-smoothing: antialiased; }
+.app-shell { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+.app-content { max-width: 640px; margin-inline: auto; }
+.app-content[hidden] { display: none; }
+.screen { padding: 28px 20px 32px; }
+.screen-heading { margin-bottom: 28px; }
+.home-screen { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
+.home-screen > .screen-heading { margin-bottom: 0; }
+.home-screen > * { min-width: 0; }
+.couple-card { border-radius: 22px !important; }
+.milestones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; border-top: 1px solid; margin-top: 24px; padding-top: 16px; }
+.navigation-inner { max-width: 1120px; margin: auto; }
+.desktop-brand { display: none; }
+.MuiBottomNavigationAction-label { white-space: nowrap; }
+.calendar-layout { display: grid; gap: 28px; align-items: start; }
+.settings-section { margin-bottom: 28px; }
+.album-screen .MuiImageList-root { gap: 8px !important; }
+.album-screen .MuiImageListItem-root { border-radius: 12px; }
+@media (min-width: 1000px) {
+  /* 1080px content = 624px main + 32px gutter + 424px companion. */
+  .app-shell { padding-top: 76px; padding-bottom: 32px; }
+  .app-content { max-width: 1120px; }
+  .screen { padding: 36px 20px; }
+  .app-navigation { top: 0; bottom: auto !important; border-top: 0 !important; border-bottom: 1px solid var(--mui-palette-divider); padding-bottom: 0 !important; }
+  .navigation-inner { display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
+  .desktop-brand { display: flex; align-items: center; gap: 12px; }
+  .desktop-brand img { border-radius: 10px; }
+  .desktop-brand strong { display: block; font-size: 18px; letter-spacing: .04em; }
+  .desktop-brand span { display: block; color: var(--mui-palette-text-secondary); font-size: 12px; }
+  .navigation-inner .MuiBottomNavigation-root { width: 480px; height: 76px; margin: 0; }
+  .navigation-inner .MuiBottomNavigationAction-root > div { width: 36px; }
+  .navigation-inner .MuiBottomNavigationAction-root { flex-direction: row; gap: 6px; padding: 12px; }
+  .navigation-inner .MuiBottomNavigationAction-label { font-size: 14px !important; }
+  .home-screen { grid-template-columns: minmax(0, 1.47fr) minmax(0, 1fr); gap: 32px; grid-template-areas: 'heading heading' 'cover today' 'week upcoming'; align-items: start; }
+  .home-screen > .screen-heading { grid-area: heading; }
+  .couple-card { grid-area: cover; }
+  .today-section { grid-area: today; }
+  .week-section { grid-area: week; }
+  .upcoming-section { grid-area: upcoming; }
+  .calendar-layout { grid-template-columns: minmax(0, 1.47fr) minmax(0, 1fr); gap: 32px; }
+  .settings-section { display: grid; grid-template-columns: 260px minmax(0, 1fr); column-gap: 48px; padding-bottom: 28px; border-bottom: 1px solid var(--mui-palette-divider); }
+  .settings-section > header { padding-top: 20px; }
+  .settings-section:last-of-type { border-bottom: 0; }
+  .album-screen .MuiImageList-root { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; }
+}

@@ -10,25 +10,10 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
     <title>MORO</title>
     <style>
-      /* 첫 화면: JS 번들을 기다리는 동안 바로 보이는 랜딩. 애니메이션이 끝나면 스스로 사라져서 JS가 필요 없다 */
-      #splash {
-        position: fixed; inset: 0; z-index: 9999; background: #0a0a0f;
-        display: grid; place-content: center; justify-items: center; gap: 18px;
-        animation: splash-out .95s ease forwards;
-      }
-      @keyframes splash-out { 0%, 65% { opacity: 1 } 100% { opacity: 0; visibility: hidden } }
-      #splash img {
-        width: 104px; height: 104px; border-radius: 26px;
-        animation: splash-pop .55s cubic-bezier(.2, .9, .3, 1.25);
-      }
-      @keyframes splash-pop { from { opacity: 0; transform: scale(.82) } to { opacity: 1; transform: none } }
-      #splash b {
-        font: 700 20px/1 Pretendard, system-ui, sans-serif; letter-spacing: .42em; padding-left: .42em;
-        background: linear-gradient(100deg, #cdb8f9, #e8e4ff 45%, #8fa5f2);
-        -webkit-background-clip: text; background-clip: text; color: transparent;
-        animation: splash-pop .55s .12s backwards cubic-bezier(.2, .9, .3, 1.25);
-      }
-      @media (prefers-reduced-motion: reduce) { #splash, #splash img, #splash b { animation-duration: .01s } }
+      #splash { position: fixed; inset: 0; z-index: 9999; background: #f8f7fa; color: #62519c; display: grid; place-content: center; justify-items: center; gap: 16px; }
+      #splash img { width: 64px; height: 64px; border-radius: 18px; }
+      #splash b { font: 650 18px/1 system-ui, sans-serif; letter-spacing: .12em; }
+      @media (prefers-color-scheme: dark) { #splash { background: #141416; color: #c8b8f0; } }
     </style>
   </head>
   <body>

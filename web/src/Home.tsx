@@ -1,29 +1,26 @@
-import { tr } from './language'
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { isEnglish, tr } from './language'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { BottomNavigation, BottomNavigationAction, Box, Paper, Snackbar } from '@mui/material'
-import { CalendarDaysIcon, HouseIcon, ImageIcon, SettingsIcon } from '@animateicons/react/lucide'
-import { makeIcon, type Playable } from './icons'
-import { keyframes } from '@emotion/react'
+import { CalendarDaysIcon, HouseIcon, ImageIcon, SettingsIcon } from './icons'
 import Summary from './Summary'
 import { CalendarSkeleton, GridSkeleton, SummarySkeleton } from './Skeletons'
 import { signedUrls } from './Photos'
-import { DEFAULT_FIT, type Fit } from './ImageFit'
+import { DEFAULT_FIT, type Fit } from './imageFitView'
 import { supabase } from './supabase'
 // 처음 보이는 홈만 바로 싣고, 나머지 탭은 그 탭을 열 때 받아온다
 const Calendar = lazy(() => import('./Calendar'))
 const Album = lazy(() => import('./Album'))
 const Settings = lazy(() => import('./Settings'))
 
-const fadeIn = keyframes`from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none }`
 
 const TABS = [
-  { label: '홈', Icon: makeIcon(HouseIcon) },
-  { label: '캘린더', Icon: makeIcon(CalendarDaysIcon) },
-  { label: '앨범', Icon: makeIcon(ImageIcon) },
-  { label: '설정', Icon: makeIcon(SettingsIcon) },
+  { label: '홈', Icon: HouseIcon },
+  { label: '캘린더', Icon: CalendarDaysIcon },
+  { label: '앨범', Icon: ImageIcon },
+  { label: '설정', Icon: SettingsIcon },
 ] as const
 
-const SKELETON = [<SummarySkeleton />, <CalendarSkeleton />, <GridSkeleton />, <GridSkeleton rows={1} />]
+const SKELETON = [<SummarySkeleton key="home" />, <CalendarSkeleton key="calendar" />, <GridSkeleton key="album" />, <GridSkeleton key="settings" rows={1} />]
 
 export type Profile = {
   id: string; display_name: string | null; color: string | null
@@ -44,6 +41,16 @@ export const DEFAULT_COLORS = { me: '#ff6b8b', partner: '#5b8def' }
 
 export default function Home({ coupleId, userId, onLeft }: { coupleId: string; userId: string; onLeft: () => void }) {
   const [tab, setTab] = useState(0)
+  const scrollPositions = useRef([0, 0, 0, 0])
+  const currentTab = useRef(0)
+  const selectTab = useCallback((next: number) => {
+    if (currentTab.current === next) return
+    scrollPositions.current[currentTab.current] = window.scrollY
+    currentTab.current = next
+    setVisited(prev => new Set(prev).add(next))
+    setTab(next)
+  }, [])
+  useLayoutEffect(() => { window.scrollTo({ top: scrollPositions.current[tab], behavior: 'instant' }) }, [tab])
   const [eventVersion, setEventVersion] = useState(0)
   const [photoVersion, setPhotoVersion] = useState(0)
   const [coupleVersion, setCoupleVersion] = useState(0)
@@ -78,7 +85,7 @@ export default function Home({ coupleId, userId, onLeft }: { coupleId: string; u
       .on('postgres_changes', { event: '*', schema: 'public', table: 'photos', filter: `couple_id=eq.${coupleId}` }, () => schedule('photo', () => setPhotoVersion(v => v + 1)))
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, () => schedule('profile', () => { reloadProfiles() }))
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'couples', filter: `id=eq.${coupleId}` }, () => schedule('couple', () => setCoupleVersion(v => v + 1)))
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pokes', filter: `receiver_id=eq.${userId}` }, () => setToast(tr('콕! 상대가 찔렀어요 👉')))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pokes', filter: `receiver_id=eq.${userId}` }, () => setToast(tr('콕! 상대가 찔렀어요')))
       .subscribe(status => {
         if (status !== 'SUBSCRIBED') return
         if (connected) {
@@ -92,16 +99,15 @@ export default function Home({ coupleId, userId, onLeft }: { coupleId: string; u
   const colorOf = useCallback((id: string) => profiles.find((p) => p.id === id)?.color ?? (id === userId ? DEFAULT_COLORS.me : DEFAULT_COLORS.partner), [profiles, userId])
   const openCalendar = useCallback((date: string) => {
     setCalendarTarget(prev => ({ date, id: (prev?.id ?? 0) + 1 }))
-    setVisited(prev => new Set(prev).add(1))
-    setTab(1)
-  }, [])
+    scrollPositions.current[1] = 0
+    selectTab(1)
+  }, [selectTab])
   const props = { coupleId, userId, eventVersion, photoVersion, coupleVersion, notify: setToast, profiles, colorOf, reloadProfiles, onLeft, openCalendar }
 
   return (
-    <Box sx={{ minHeight: '100dvh', pb: 'calc(72px + env(safe-area-inset-bottom))', bgcolor: 'background.default' }}>
+    <Box className="app-shell" sx={{ minHeight: '100dvh', bgcolor: 'background.default' }}>
       {[0, 1, 2, 3].map(i => visited.has(i) && (
-        <Box key={i} hidden={tab !== i} sx={{ maxWidth: 640, mx: 'auto', animation: tab === i ? `${fadeIn} .32s cubic-bezier(.2,.8,.2,1)` : 'none',
-          '@media (prefers-reduced-motion: reduce)': { animation: 'none' } }}>
+        <Box component="main" key={i} hidden={tab !== i} className="app-content" id={`panel-${i}`}>
           <Suspense fallback={SKELETON[i]}>
             {i === 0 && <Summary {...props} active={tab === i} />}
             {i === 1 && <Calendar coupleId={coupleId} userId={userId} eventVersion={eventVersion} photoVersion={photoVersion}
@@ -112,7 +118,7 @@ export default function Home({ coupleId, userId, onLeft }: { coupleId: string; u
         </Box>
       ))}
 
-      <Paper elevation={0} sx={{ position: 'fixed', left: 0, right: 0, bottom: 0, borderRadius: 0, borderTop: 1, borderColor: 'divider',
+      <Paper component="nav" aria-label="MORO" className="app-navigation" elevation={0} sx={{ position: 'fixed', left: 0, right: 0, bottom: 0, borderRadius: 0, borderTop: 1, borderColor: 'divider',
         zIndex: 1100, pb: 'env(safe-area-inset-bottom)', bgcolor: 'background.paper',
         '@supports (backdrop-filter: blur(16px))': {
           bgcolor: 'color-mix(in srgb, var(--mui-palette-background-paper) 82%, transparent)',
@@ -120,14 +126,17 @@ export default function Home({ coupleId, userId, onLeft }: { coupleId: string; u
         },
         '@media (prefers-reduced-transparency: reduce)': { bgcolor: 'background.paper', backdropFilter: 'none' },
         '@media (forced-colors: active)': { bgcolor: 'Canvas', backdropFilter: 'none' } }}>
-        <BottomNavigation showLabels value={tab} onChange={(_, v) => { setVisited(prev => new Set(prev).add(v)); setTab(v) }} sx={{ bgcolor: 'transparent', maxWidth: 640, mx: 'auto', height: 68,
+        <Box className="navigation-inner">
+        <Box className="desktop-brand"><img src="/icon-192.png" alt="" width="34" height="34"/><Box><strong>MORO</strong><span>{isEnglish() ? 'Every day, together' : '함께하는 모든 날'}</span></Box></Box>
+        <BottomNavigation showLabels value={tab} onChange={(_, v) => selectTab(v)} sx={{ bgcolor: 'transparent', maxWidth: 640, mx: 'auto', height: 68, width: '100%',
           '& .MuiBottomNavigationAction-root': { minWidth: 0, gap: 0.5, color: 'text.secondary' },
-          '& .MuiBottomNavigationAction-label': { fontSize: 11, fontWeight: 600 },
-          '& .Mui-selected .MuiBottomNavigationAction-label': { fontSize: 11 } }}>
+          '& .MuiBottomNavigationAction-label': { fontSize: 12, fontWeight: 600 },
+          '& .Mui-selected .MuiBottomNavigationAction-label': { fontSize: 12 } }}>
           {TABS.map(({ label, Icon }, i) => (
-            <BottomNavigationAction key={label} label={tr(label)} icon={<TabIcon Icon={Icon} active={tab === i} />} />
+            <BottomNavigationAction key={label} aria-current={tab === i ? 'page' : undefined} aria-controls={`panel-${i}`} label={tr(label)} icon={<TabIcon Icon={Icon} active={tab === i} />} />
           ))}
         </BottomNavigation>
+        </Box>
       </Paper>
 
       <Snackbar open={!!toast} message={toast} autoHideDuration={3000} onClose={() => setToast('')}
@@ -138,10 +147,8 @@ export default function Home({ coupleId, userId, onLeft }: { coupleId: string; u
 
 // 탭이 선택되는 순간 그 아이콘만 한 번 움직인다
 function TabIcon({ Icon, active }: { Icon: (typeof TABS)[number]['Icon']; active: boolean }) {
-  const ref = useRef<Playable>(null)
-  useEffect(() => { if (active && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) ref.current?.play() }, [active])
   return <Box sx={{ width: 46, height: 28, borderRadius: 3, display: 'grid', placeItems: 'center',
     bgcolor: active ? 'color-mix(in srgb, var(--mui-palette-primary-main) 12%, transparent)' : 'transparent',
     transition: 'background-color 200ms ease, transform 260ms cubic-bezier(.2,.8,.2,1)', transform: active ? 'scale(1)' : 'scale(.94)',
-    '@media (prefers-reduced-motion: reduce)': { transition: 'none', transform: 'none' } }}><Icon ref={ref} size={22} /></Box>
+    '@media (prefers-reduced-motion: reduce)': { transition: 'none', transform: 'none' } }}><Icon size={22} /></Box>
 }

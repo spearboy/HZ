@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { CssBaseline, ThemeProvider } from '@mui/material'
 import { theme } from './theme'
 import App from './App.tsx'
+import './design.css'
 import { LANGUAGE_KEY, LanguageChoice, setCurrentLanguage, type Language } from './language'
 
 function Root() {
@@ -15,6 +16,7 @@ function Root() {
     setLanguageState(next)
   }
   useEffect(() => { document.documentElement.lang = language }, [language])
+  useEffect(() => { document.getElementById('splash')?.remove() }, [])
   useEffect(() => { document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#62519c') }, [])
   return (
     <LanguageChoice.Provider value={{ language, setLanguage }}>

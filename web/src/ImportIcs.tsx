@@ -1,7 +1,7 @@
 import { isEnglish, locale, tr } from './language'
 import { useState } from 'react'
 import { Alert, Box, Button, Checkbox, List, ListItemButton, ListItemIcon, ListItemText, Stack } from '@mui/material'
-import { FileUpIcon } from '@animateicons/react/lucide'
+import { FileUpIcon } from './icons'
 import { parseIcs, type IcsEvent } from './ics'
 import { koError, supabase } from './supabase'
 

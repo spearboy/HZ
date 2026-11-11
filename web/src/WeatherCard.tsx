@@ -1,7 +1,7 @@
 import { Box, Card, Skeleton, Stack, Typography } from '@mui/material'
 import {
   CloudIcon, CloudLightningIcon, CloudSunIcon, DropletIcon, SnowflakeIcon, SunIcon, UmbrellaIcon,
-} from '@animateicons/react/lucide'
+} from './icons'
 import { keyframes } from '@emotion/react'
 import { weatherFx, weatherText, type Weather } from './weather'
 import { isEnglish, tr } from './language'
@@ -15,26 +15,28 @@ const icon = (code: number) => {
 }
 
 // 메인 카드 위에 까는 비/눈. 요소를 수백 개 만드는 대신 배경 패턴 두세 겹을 흘린다
-const rain = keyframes`to { background-position: -36px 300px, -26px 380px }`
-const snow = keyframes`to { background-position: 50px 260px, -40px 320px, 25px 400px }`
+const rain = keyframes`to { transform: translate3d(0, 150px, 0) }`
+const snow = keyframes`to { transform: translate3d(0, 92px, 0) }`
 
 export function WeatherFx({ code }: { code: number }) {
   const fx = weatherFx(code)
   if (fx === 'none') return null
   const style = fx === 'rain'
     ? {
-        backgroundImage: 'repeating-linear-gradient(97deg, transparent 0 17px, #ffffff9e 17px 18px), repeating-linear-gradient(94deg, transparent 0 29px, #ffffff5c 29px 30px)',
-        backgroundSize: '100px 150px, 150px 190px',
+        backgroundImage: 'repeating-linear-gradient(97deg, transparent 0 17px, #ffffff9e 17px 18px), repeating-linear-gradient(94deg, transparent 0 29px, #ffffff5c 29px 30px)', // taste-skill-ignore: weather particle texture, not a surface gradient
+        backgroundSize: '100px 150px, 150px 150px',
         animation: `${rain} .6s linear infinite`,
       }
     : {
-        backgroundImage: 'radial-gradient(#ffffffe6 2.7px, transparent 3.2px), radial-gradient(#ffffffb3 2px, transparent 2.5px), radial-gradient(#ffffff8c 1.5px, transparent 2px)',
-        backgroundSize: '92px 92px, 68px 68px, 46px 46px',
+        backgroundImage: 'radial-gradient(#ffffffe6 2.7px, transparent 3.2px), radial-gradient(#ffffffb3 2px, transparent 2.5px), radial-gradient(#ffffff8c 1.5px, transparent 2px)', // taste-skill-ignore: weather particle texture, not a surface gradient
+        backgroundSize: '92px 92px, 68px 92px, 46px 92px',
         animation: `${snow} 9s linear infinite`,
       }
   return (
-    <Box aria-hidden sx={{ position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.55, ...style,
-      '@media (prefers-reduced-motion: reduce)': { animation: 'none' } }} />
+    <Box aria-hidden sx={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+      <Box sx={{ position: 'absolute', inset: '-160px -40px 0', opacity: 0.55, ...style,
+        '@media (prefers-reduced-motion: reduce)': { animation: 'none' } }} />
+    </Box>
   )
 }
 

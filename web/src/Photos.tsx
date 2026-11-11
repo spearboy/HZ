@@ -1,7 +1,7 @@
 import { isEnglish, tr } from './language'
 import { useRef, useState } from 'react'
 import { Box, Button, ButtonBase, CircularProgress, Dialog, DialogActions, DialogTitle, IconButton, ImageList, ImageListItem, Typography } from '@mui/material'
-import { XIcon } from '@animateicons/react/lucide'
+import { XIcon } from './icons'
 import { supabase } from './supabase'
 import { processPhotoUploads, type PhotoUpload } from './photoUpload'
 export type { PhotoUpload } from './photoUpload'

@@ -1,12 +1,12 @@
 import { isEnglish, locale, tr } from './language'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Box, Button, ButtonBase, Card, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Skeleton, Stack, TextField, Typography, useTheme,
+  Box, Button, ButtonBase, Card, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Skeleton, Stack, TextField, Typography, useTheme,
 } from '@mui/material'
-import { ChevronRightIcon, HeartIcon, PencilIcon } from '@animateicons/react/lucide'
+import { ChevronRightIcon, HeartIcon, PencilIcon } from './icons'
 import { koError, supabase } from './supabase'
 import { signedUrl } from './Photos'
-import ImageFitDialog, { DEFAULT_FIT, FitAvatar, fitImg, type Fit } from './ImageFit'
+import { DEFAULT_FIT, FitAvatar, fitImg, type Fit } from './imageFitView'
 import { avatarFit } from './Home'
 import WeatherCard, { WeatherFx } from './WeatherCard'
 import GlassFx, { fxOn } from './GlassFx'
@@ -17,6 +17,9 @@ import { holidayName } from './holidays'
 import { SummarySkeleton } from './Skeletons'
 import type { TabProps } from './Home'
 import { poke } from './poke'
+import { usePageVisible } from './usePageVisible'
+
+const ImageFitDialog = lazy(() => import('./ImageFit'))
 
 // 홈의 '이번 주'는 월요일에 시작해 일요일에 끝난다 (캘린더 탭의 월 그리드는 일요일 시작 그대로)
 const WEEK = ['월', '화', '수', '목', '금', '토', '일']
@@ -26,6 +29,7 @@ const dow = (k: string) => new Date(`${k}T00:00`).toLocaleDateString(locale(), {
 
 export default function Summary({ coupleId, userId, active, eventVersion, coupleVersion, notify, profiles, colorOf, openCalendar }: TabProps) {
   const { palette } = useTheme()
+  const pageVisible = usePageVisible()
   const [startedOn, setStartedOn] = useState<string | null | undefined>(undefined)
   const [coupleError, setCoupleError] = useState(false)
   const [week, setWeek] = useState<Event[]>([])
@@ -125,10 +129,11 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
     .sort((a, b) => a.on.localeCompare(b.on))
 
   return (
-    <Box sx={{ p: 2, pb: 12 }}>
-      <Stack direction="row" sx={{ alignItems: 'center', gap: 1, mb: 2.5, pt: 1 }}>
+    <Box className="screen home-screen">
+      <Stack className="screen-heading" direction="row" sx={{ alignItems: 'center', gap: 1 }}>
+        <Box component="img" src="/icon-192.png" alt="MORO" sx={{ width: 38, height: 38, borderRadius: '12px', mr: 0.5, display: { xs: 'block', md: 'none' } }} />
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography component="h1" sx={{ fontSize: 25, fontWeight: 750, letterSpacing: '-.04em', lineHeight: 1.2 }}>MORO</Typography>
+          <Typography component="h1" sx={{ fontSize: 25, fontWeight: 750, letterSpacing: '-.04em', lineHeight: 1.2 }}>{isEnglish() ? 'Our everyday' : '우리의 하루'}</Typography>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 0.5 }}>
             <Typography variant="body2" color="text.secondary">{now.toLocaleDateString(locale(), { month: 'long', day: 'numeric', weekday: 'short' })}</Typography>
             <WeatherCard w={weather} compact />
@@ -138,19 +143,19 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
       </Stack>
 
       {/* 커플 디데이 */}
-      <Card ref={cardRef} sx={{ mb: 3, border: 0, position: 'relative', overflow: 'hidden', minHeight: 196,
-        color: '#fff', background: 'linear-gradient(125deg, #29233f 0%, #514574 56%, #596a9b 100%)' }}>
+      <Card className="couple-card" ref={cardRef} sx={{ border: 0, position: 'relative', overflow: 'hidden',
+        color: cover.url ? '#fff' : 'text.primary', bgcolor: 'var(--moro-feature)' }}>
         {cover.url && (
           <>
             <Box sx={{ position: 'absolute', inset: 0 }}><img src={cover.url} alt="" style={fitImg(cover.fit)} /></Box>
             {/* 어떤 사진을 올려도 글자가 읽히게 덮는다 */}
-            <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, #00000052, #000000ad)' }} />
+            <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, #00000052, #000000ad)' }} /> {/* taste-skill-ignore: neutral scrim keeps text legible over a user's photo */}
           </>
         )}
-        {fx && weather && <WeatherFx code={weather.code} />}
-        {glass !== 'none' && <GlassFx kind={glass} seed={+today.replaceAll('-', '')} />}
-        <Box sx={{ position: 'relative', p: 2.5, pointerEvents: 'none', userSelect: 'none' }}>
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
+        {active && pageVisible && fx && weather && <WeatherFx code={weather.code} />}
+        {active && pageVisible && glass !== 'none' && <GlassFx kind={glass} seed={+today.replaceAll('-', '')} />}
+        <Box sx={{ position: 'relative', p: { xs: 3, md: 3.5 }, pointerEvents: 'none', userSelect: 'none' }}>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 3 }}>
           {[me, partner].map((p, i) => p && (
             <Stack key={p.id} direction="row" spacing={0.75} sx={{ alignItems: 'center', minWidth: 0 }}>
               {i === 1 && <Box sx={{ mr: 0.25, lineHeight: 0 }}><HeartIcon size={16} /></Box>}
@@ -165,13 +170,12 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
         {together ? (
           <>
             <Typography variant="body2" sx={{ opacity: 0.85 }}>{tr("함께한 지")}</Typography>
-            <Typography sx={{ fontSize: 38, fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1.15 }}>{together.n.toLocaleString(locale())}{isEnglish() ? ' days' : '일'}</Typography>
-            <Stack direction="row" spacing={1} sx={{ mt: 1.5, flexWrap: 'wrap', rowGap: 1 }}>
-              <Chip size="small" label={`${together.hundred.n}${isEnglish() ? ' days' : '일'} ${dLabel(together.hundred.left)}`}
-                sx={{ bgcolor: '#251e3de6', color: 'inherit', border: '1px solid #ffffff40', '@supports (backdrop-filter: blur(8px))': { bgcolor: '#251e3dba', backdropFilter: 'blur(8px)' }, '@media (prefers-reduced-transparency: reduce)': { bgcolor: '#251e3d', backdropFilter: 'none' } }} />
-              <Chip size="small" label={`${together.anniversary.years}${isEnglish() ? '-year anniversary' : '주년'} ${dLabel(together.anniversary.left)}`}
-                sx={{ bgcolor: '#251e3de6', color: 'inherit', border: '1px solid #ffffff40', '@supports (backdrop-filter: blur(8px))': { bgcolor: '#251e3dba', backdropFilter: 'blur(8px)' }, '@media (prefers-reduced-transparency: reduce)': { bgcolor: '#251e3d', backdropFilter: 'none' } }} />
-            </Stack>
+            <Typography sx={{ fontSize: 44, fontWeight: 500, fontVariantNumeric: 'tabular-nums', color: cover.url ? 'inherit' : 'primary.main', letterSpacing: '-0.04em', lineHeight: 1.15 }}>{together.n.toLocaleString(locale())}{isEnglish() ? ' days' : '일'}</Typography>
+            <Box className="milestones" sx={{ borderColor: cover.url ? '#ffffff40' : 'divider' }}>
+              <Box><Typography variant="caption" sx={{ opacity: 0.8 }}>{together.hundred.n}{isEnglish() ? ' days together' : '일 되는 날'}</Typography><Typography sx={{ fontSize: 20, fontWeight: 500 }}>{dLabel(together.hundred.left)}</Typography></Box>
+              <Box><Typography variant="caption" sx={{ opacity: 0.8 }}>{together.anniversary.years}{isEnglish() ? '-year anniversary' : '주년 기념일'}</Typography><Typography sx={{ fontSize: 20, fontWeight: 500 }}>{dLabel(together.anniversary.left)}</Typography></Box>
+            </Box>
+
           </>
         ) : startedOn === null && (
           <>
@@ -182,7 +186,7 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
         </Box>
       </Card>
 
-      <Box component="section" sx={{ mb: 3 }}>
+      <Box component="section" className="today-section">
         <Stack direction="row" sx={{ alignItems: 'baseline', mb: 1.25 }}>
           <Typography component="h2" sx={{ fontSize: 17, fontWeight: 750, flex: 1 }}>{isEnglish() ? 'Today' : '오늘의 일정'}</Typography>
           <Button size="small" onClick={() => openCalendar(today)} endIcon={<ChevronRightIcon size={16} />} sx={{ minHeight: 32, px: 0.5 }}>
@@ -215,7 +219,7 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
         )}
       </Box>
 
-      <Box component="section" sx={{ mb: 3 }}>
+      <Box component="section" className="upcoming-section">
         <Typography component="h2" sx={{ fontSize: 17, fontWeight: 750, mb: 1.25 }}>{isEnglish() ? 'Coming up' : '다가오는 날'}</Typography>
         {!eventsReady && !eventsError ? <Skeleton variant="rounded" height={72} /> : !eventsReady ? null : upcoming.length ? (
           <Card>{upcoming.map(({ ev, on }, i) => {
@@ -232,7 +236,7 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
         ) : <Typography variant="body2" color="text.secondary" sx={{ px: 0.25 }}>{tr("일정을 만들 때 '홈에 디데이로 표시'를 켜면 여기에 나와요.")}</Typography>}
       </Box>
 
-      <Box component="section">
+      <Box component="section" className="week-section">
         <Stack direction="row" sx={{ alignItems: 'baseline', mb: 1.25 }}>
           <Typography component="h2" sx={{ fontSize: 17, fontWeight: 750, flex: 1 }}>{tr('이번 주')}</Typography>
           <Button size="small" onClick={() => openCalendar(today)} endIcon={<ChevronRightIcon size={16} />} sx={{ minHeight: 32, px: 0.5 }}>{isEnglish() ? 'View calendar' : '캘린더 보기'}</Button>
@@ -270,8 +274,8 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
       </Box>
 
       {editing && <StartDialog value={startedOn ?? ''} onClose={() => setEditing(false)} onSave={saveStart} onEditCover={editCover} />}
-      {pickingCover && <ImageFitDialog title={tr("메인 카드 배경")} ratio={coverRatio} max={1600} prefix={`${coupleId}/cover`}
-        url={cover.url} path={cover.path} fit={cover.fit} onClose={() => setPickingCover(false)} onSave={saveCover} onError={notify} />}
+      {pickingCover && <Suspense fallback={null}><ImageFitDialog title={tr("메인 카드 배경")} ratio={coverRatio} max={1600} prefix={`${coupleId}/cover`}
+        url={cover.url} path={cover.path} fit={cover.fit} onClose={() => setPickingCover(false)} onSave={saveCover} onError={notify} /></Suspense>}
     </Box>
   )
 }

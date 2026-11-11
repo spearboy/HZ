@@ -22,4 +22,14 @@ assert.deepEqual(concurrent, first)
 assert.equal(requests, 1, '동시에 호출해도 날씨 요청은 한 번만 보낸다')
 assert.deepEqual(await getWeather(), first)
 assert.equal(requests, 1, '유효한 캐시를 재사용한다')
+storage.clear()
+globalThis.fetch = (async () => { requests++; throw new Error('offline') }) as typeof fetch
+assert.equal(await getWeather(), null)
+assert.equal(await getWeather(), null)
+assert.equal(requests, 2, '실패한 날씨 요청은 탭을 반복 전환해도 1분 동안 반복하지 않는다')
+const realNow = Date.now
+Date.now = () => realNow() + 61_000
+assert.equal(await getWeather(), null)
+assert.equal(requests, 3, '재시도 간격이 지나면 다시 요청한다')
+Date.now = realNow
 console.log('weather cache ok')

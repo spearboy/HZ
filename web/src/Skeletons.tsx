@@ -5,27 +5,23 @@ export const CardSkeleton = ({ h }: { h: number }) => <Skeleton variant="rounded
 
 export function SummarySkeleton() {
   return (
-    <Box sx={{ p: 2, pb: 12 }}>
-      <Skeleton width={100} height={62} sx={{ mb: 2 }} />
-      <Box sx={{ mb: 3 }}><CardSkeleton h={196} /></Box>
-      <Skeleton width={96} height={28} sx={{ mb: 1 }} />
-      <Box sx={{ mb: 3 }}><CardSkeleton h={86} /></Box>
-      <Skeleton width={96} height={28} sx={{ mb: 1 }} />
-      <Box sx={{ mb: 3 }}><CardSkeleton h={72} /></Box>
-      <Skeleton width={72} height={28} sx={{ mb: 1 }} />
-      <CardSkeleton h={88} />
+    <Box className="screen home-screen" aria-busy="true">
+      <Box className="screen-heading"><Skeleton width={140} height={52} /></Box>
+      <Box className="couple-card"><CardSkeleton h={294} /></Box>
+      <Box className="today-section"><Skeleton width={96} height={28} sx={{ mb: 1 }} /><CardSkeleton h={140} /></Box>
+      <Box className="upcoming-section"><Skeleton width={96} height={28} sx={{ mb: 1 }} /><CardSkeleton h={72} /></Box>
+      <Box className="week-section"><Skeleton width={72} height={28} sx={{ mb: 1 }} /><CardSkeleton h={136} /></Box>
     </Box>
   )
 }
 
 export function CalendarSkeleton() {
   return (
-    <Box sx={{ p: 2, pb: 12 }}>
+    <Box className="screen calendar-screen" aria-busy="true">
       <Skeleton width={60} height={20} />
       <Skeleton width={96} height={48} sx={{ mb: 1.5 }} />
-      <CardSkeleton h={460} />
-      <Skeleton width={120} height={36} sx={{ mt: 3, mb: 1.5 }} />
-      <Stack spacing={1}>{[0, 1].map((i) => <CardSkeleton key={i} h={72} />)}</Stack>
+      <Box className="calendar-layout"><CardSkeleton h={440} />
+        <Box><Skeleton width={120} height={36} sx={{ mb: 1.5 }} /><Stack spacing={1}>{[0, 1].map((i) => <CardSkeleton key={i} h={72} />)}</Stack></Box></Box>
     </Box>
   )
 }
