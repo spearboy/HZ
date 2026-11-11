@@ -27,6 +27,7 @@ const dow = (k: string) => new Date(`${k}T00:00`).toLocaleDateString(locale(), {
 export default function Summary({ coupleId, userId, active, eventVersion, coupleVersion, notify, profiles, colorOf, openCalendar }: TabProps) {
   const { palette } = useTheme()
   const [startedOn, setStartedOn] = useState<string | null | undefined>(undefined)
+  const [coupleError, setCoupleError] = useState(false)
   const [week, setWeek] = useState<Event[]>([])
   const [ddays, setDdays] = useState<Event[]>([])
   const [eventsReady, setEventsReady] = useState(false)
@@ -56,9 +57,10 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
 
   const loadCouple = useCallback(async () => {
     const id = ++coupleLoadId.current
+    setCoupleError(false)
     const c = await supabase.from('couples').select('started_on,cover_path,cover_zoom,cover_x,cover_y').eq('id', coupleId).single()
     if (id !== coupleLoadId.current) return
-    if (c.error) { coupleKey.current = -1; return notify(koError(c.error)) }
+    if (c.error) { coupleKey.current = -1; setCoupleError(true); return notify(koError(c.error)) }
     const url = await signedUrl(c.data.cover_path)
     if (id !== coupleLoadId.current) return
     setStartedOn(c.data.started_on)
@@ -105,7 +107,10 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
     setPickingCover(true)
   }
 
-  if (startedOn === undefined) return <SummarySkeleton />
+  if (startedOn === undefined) return coupleError ? (
+    <Box sx={{ p: 3 }}><Card sx={{ p: 3 }}><Typography>{isEnglish() ? 'Could not load your home.' : '홈 정보를 불러오지 못했어요.'}</Typography>
+      <Button onClick={loadCouple}>{isEnglish() ? 'Try again' : '다시 불러오기'}</Button></Card></Box>
+  ) : <SummarySkeleton />
 
   const me = profiles.find((p) => p.id === userId)
   const partner = profiles.find((p) => p.id !== userId)

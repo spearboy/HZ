@@ -3,13 +3,21 @@ import { supabase } from './supabase'
 // VAPID 공개키의 출처는 서버(Edge Function) 하나뿐이다.
 // 빌드 시점 환경변수에 따로 넣어 두면, 서버 키와 어긋났을 때 구독은 정상으로 보이는데
 // 발송만 조용히 실패한다(푸시 서버가 400을 돌려준다). 그래서 한 곳에서만 가져온다.
-let cached: string | null | undefined
+// https://supabase.com/docs/guides/functions/error-handling
+let cached: string | undefined
+let pending: Promise<string | null> | undefined
 
 async function serverKey(): Promise<string | null> {
-  if (cached !== undefined) return cached
-  const { data } = await supabase.functions.invoke('hyper-endpoint', { body: { type: 'vapid' } })
-  cached = (data as { publicKey?: string } | null)?.publicKey ?? null
-  return cached
+  if (cached) return cached
+  if (!pending) {
+    pending = supabase.functions.invoke('hyper-endpoint', { body: { type: 'vapid' } })
+      .then(({ data }) => {
+        const key = (data as { publicKey?: string } | null)?.publicKey
+        if (key) cached = key
+        return key || null
+      }).catch(() => null).finally(() => { pending = undefined })
+  }
+  return pending
 }
 
 const b64url = (buf: ArrayBuffer) =>

@@ -1,16 +1,17 @@
-import { tr } from './language'
+import { isEnglish, tr } from './language'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Alert, Box, Button, Card, CardContent, CircularProgress, Divider, Stack, TextField, Typography } from '@mui/material'
 import { auth, koError, supabase } from './supabase'
 import Home from './Home'
+import { clearSignedCache } from './Photos'
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
+    const { data } = supabase.auth.onAuthStateChange((event, s) => { if (event === 'SIGNED_OUT') clearSignedCache(); setSession(s) })
     return () => data.subscription.unsubscribe()
   }, [])
 
@@ -82,8 +83,10 @@ function Paired({ userId }: { userId: string }) {
   const [msg, setMsg] = useState('')
 
   const check = useCallback(async () => {
+    setMsg('')
     const { data, error } = await supabase.from('couple_members').select('couple_id')
     if (error) return setMsg(koError(error))
+    if (data.length !== 2) clearSignedCache()
     setCoupleId(data.length === 2 ? data[0].couple_id : null)
   }, [])
 
@@ -108,8 +111,13 @@ function Paired({ userId }: { userId: string }) {
     else check()
   }
 
-  if (coupleId === undefined) return <Loading />
-  if (coupleId) return <Home coupleId={coupleId} userId={userId} onLeft={check} />
+  if (coupleId === undefined) return msg ? (
+    <Centered title={isEnglish() ? 'Could not check your connection' : '연결 상태를 불러오지 못했어요'} sub="">
+      <Alert severity="error">{msg}</Alert>
+      <Button variant="contained" onClick={check}>{isEnglish() ? 'Try again' : '다시 시도'}</Button>
+    </Centered>
+  ) : <Loading />
+  if (coupleId) return <Home coupleId={coupleId} userId={userId} onLeft={() => { clearSignedCache(); setCoupleId(null); check() }} />
 
   return (
     <Centered title={tr("상대와 연결하기")} sub={tr("한 사람이 코드를 만들고, 다른 사람이 입력하면 연결돼요")}>

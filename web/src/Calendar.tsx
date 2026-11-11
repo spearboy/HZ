@@ -9,7 +9,7 @@ import {
 } from '@animateicons/react/lucide'
 import { keyframes } from '@emotion/react'
 import { koError, supabase } from './supabase'
-import { PHOTO_COLUMNS, PhotoGrid, uploadPhotos, withThumbs, type Photo } from './Photos'
+import { PHOTO_COLUMNS, PhotoGrid, uploadPhotos, withThumbs, type Photo, type PhotoUpload } from './Photos'
 import type { TabProps } from './Home'
 import { groupByDay, hm, layout, slotOf, ymd, type Event } from './repeat'
 import { eventsInRange } from './events'
@@ -37,6 +37,9 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
   const [selected, setSelected] = useState(() => ymd(new Date()))
   const [editing, setEditing] = useState<Event | 'new' | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [failedUpload, setFailedUpload] = useState<{ files: PhotoUpload[]; date: string } | null>(null)
+  const [photoRefresh, setPhotoRefresh] = useState(0)
+  const uploadRef = useRef(false)
   const touch = useRef<{ x: number; y: number } | null>(null)
   const eventLoadId = useRef(0)
   const photoLoadId = useRef(0)
@@ -47,6 +50,10 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
   const [dir, setDir] = useState(0)
   const [eventsReady, setEventsReady] = useState(false)
   const [photosReady, setPhotosReady] = useState(false)
+  const [eventsError, setEventsError] = useState(false)
+  const [photosError, setPhotosError] = useState(false)
+  const [eventsRange, setEventsRange] = useState('')
+  const [photosRange, setPhotosRange] = useState('')
   const [view, setView] = useState<'list' | 'grid'>(() => {
     try { return localStorage.getItem(VIEW_KEY) === 'grid' ? 'grid' : 'list' } catch { return 'list' }
   })
@@ -71,19 +78,23 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
 
   const loadEvents = useCallback(async () => {
     const id = ++eventLoadId.current
+    setEventsError(false)
     const ev = await eventsInRange(from, to, fromDay)
     if (id !== eventLoadId.current) return
-    if (ev.error) { eventKey.current = ''; return notify(koError(ev.error)) }
+    if (ev.error) { eventKey.current = ''; setEventsError(true); return notify(koError(ev.error)) }
     setEvents(ev.data)
+    setEventsRange(`${from}/${to}`)
     eventsFetchedAt.current = Date.now()
     setEventsReady(true)
   }, [from, to, fromDay, notify])
   const loadPhotos = useCallback(async () => {
     const id = ++photoLoadId.current
+    setPhotosError(false)
     const ph = await supabase.from('photos').select(PHOTO_COLUMNS).gte('photo_date', fromDay).lte('photo_date', toDay).order('created_at')
     if (id !== photoLoadId.current) return
-    if (ph.error) { photoKey.current = ''; return notify(koError(ph.error)) }
+    if (ph.error) { photoKey.current = ''; setPhotosError(true); return notify(koError(ph.error)) }
     setPhotos(ph.data)
+    setPhotosRange(`${fromDay}/${toDay}`)
     photosFetchedAt.current = Date.now()
     setPhotosReady(true)
   }, [fromDay, toDay, notify])
@@ -93,9 +104,9 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
     if (active && (eventKey.current !== key || (eventsFetchedAt.current > 0 && Date.now() - eventsFetchedAt.current > 60_000))) { eventKey.current = key; loadEvents() }
   }, [active, from, to, eventVersion, loadEvents])
   useEffect(() => {
-    const key = `${fromDay}/${toDay}/${photoVersion}`
+    const key = `${fromDay}/${toDay}/${photoVersion}/${photoRefresh}`
     if (active && (photoKey.current !== key || (photosFetchedAt.current > 0 && Date.now() - photosFetchedAt.current > 60_000))) { photoKey.current = key; loadPhotos() }
-  }, [active, fromDay, toDay, photoVersion, loadPhotos])
+  }, [active, fromDay, toDay, photoVersion, photoRefresh, loadPhotos])
 
   useEffect(() => {
     let active = true
@@ -109,16 +120,28 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
   const photoDays = useMemo(() => new Set(photos.map((p) => p.photo_date)), [photos])
   const byDay = useMemo(() => groupByDay(events, fromDay, toDay), [events, fromDay, toDay])
 
-  const upload = async (files: FileList) => {
+  const upload = async (files: PhotoUpload[], date: string) => {
+    if (uploadRef.current || !files.length) return
+    uploadRef.current = true
     setUploading(true)
-    try { await uploadPhotos(files, coupleId, userId, selected) }
-    catch (e) { notify(e instanceof Error ? koError(e) : String(e)) }
-    setUploading(false)
-    loadPhotos()
+    try {
+      const failed = await uploadPhotos(files, coupleId, userId, date)
+      setFailedUpload(failed.length ? { files: failed, date } : null)
+      const count = files.length - failed.length
+      notify(isEnglish() ? `${count} uploaded, ${failed.length} failed.` : `${count}장 업로드, ${failed.length}장 실패했어요.`)
+      if (count) setPhotoRefresh(value => value + 1)
+    } catch (e) {
+      setFailedUpload({ files, date })
+      notify(e instanceof Error ? koError(e) : String(e))
+    } finally { uploadRef.current = false; setUploading(false) }
   }
 
   const today = ymd(new Date())
-  const shift = (n: number) => { setDir(n); setMonth(new Date(month.getFullYear(), month.getMonth() + n, 1)) }
+  const shift = (n: number) => {
+    const next = new Date(month.getFullYear(), month.getMonth() + n, 1)
+    const day = Math.min(+selected.slice(8), new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate())
+    setDir(n); setMonth(next); setSelected(ymd(new Date(next.getFullYear(), next.getMonth(), day)))
+  }
   const goToday = () => {
     const now = new Date()
     setDir(now > month ? 1 : -1)
@@ -130,7 +153,15 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
   const dayList = byDay.get(selected) ?? []
   const color = (ev: Event) => colorOf(ev.created_by)
 
-  if (!eventsReady || !photosReady) return <CalendarSkeleton />
+  const eventsCurrent = eventsReady && eventsRange === `${from}/${to}`
+  const photosCurrent = photosReady && photosRange === `${fromDay}/${toDay}`
+  if (!eventsCurrent || !photosCurrent) {
+    if (eventsError || photosError) return <Box sx={{ p: 3 }}><Card sx={{ p: 3 }}>
+      <Typography>{isEnglish() ? 'Could not load the calendar.' : '캘린더를 불러오지 못했어요.'}</Typography>
+      <Button onClick={() => { if (!eventsCurrent) loadEvents(); if (!photosCurrent) loadPhotos() }}>{isEnglish() ? 'Try again' : '다시 불러오기'}</Button>
+    </Card></Box>
+    return <CalendarSkeleton />
+  }
 
   return (
     <Box sx={{ px: 2, pt: 3, pb: 12 }}>
@@ -234,7 +265,7 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
       </ToggleButtonGroup>
 
       {view === 'grid' ? (
-        <Timetable list={dayList} color={color} onPick={setEditing} onAdd={() => setEditing('new')} />
+        <Timetable date={selected} list={dayList} color={color} onPick={setEditing} onAdd={() => setEditing('new')} />
       ) : (
       <Stack spacing={1}>
         {dayList.map(({ ev, first, last }) => (
@@ -265,11 +296,21 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
 
       <Stack direction="row" sx={{ alignItems: 'center', mt: 3.5, mb: 1 }}>
         <Typography component="h2" sx={{ fontSize: 17, fontWeight: 700, flex: 1 }}>{tr("이날의 사진")}</Typography>
-        <Button component="label" size="small" startIcon={<ImageIcon size={18} />} disabled={uploading}>
+        <Button component="label" size="small" startIcon={<ImageIcon size={18} />} disabled={uploading || !!failedUpload}>
           {uploading ? tr('올리는 중…') : tr("사진 올리기")}
-          <input type="file" accept="image/*" multiple hidden onChange={(e) => e.target.files && upload(e.target.files)} />
+          <input type="file" accept="image/*" multiple hidden onChange={(e) => {
+            const files = Array.from(e.target.files ?? []).map(file => ({ file, id: crypto.randomUUID() }))
+            e.target.value = ''
+            void upload(files, selected)
+          }} />
         </Button>
       </Stack>
+      {failedUpload && <Card sx={{ p: 2, mb: 1 }}>
+        <Typography variant="body2">{isEnglish() ? `${failedUpload.files.length} photos for ${failedUpload.date} could not be uploaded.` : `${failedUpload.date} 사진 ${failedUpload.files.length}장을 올리지 못했어요.`}</Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', overflowWrap: 'anywhere' }}>{failedUpload.files.map(item => item.file.name).join(', ')}</Typography>
+        <Button size="small" disabled={uploading} onClick={() => upload(failedUpload.files, failedUpload.date)}>{isEnglish() ? 'Retry failed photos' : '실패한 사진 다시 올리기'}</Button>
+        <Button size="small" disabled={uploading} onClick={() => setFailedUpload(null)}>{isEnglish() ? 'Dismiss' : '닫기'}</Button>
+      </Card>}
       <PhotoGrid photos={dayPhotos} userId={userId} onChanged={loadPhotos} onError={notify} />
 
       <Fab color="primary" aria-label={tr("일정 추가")} onClick={() => setEditing('new')}
@@ -295,33 +336,42 @@ function EventDialog({ event, date, coupleId, userId, onClose, onSaved, notify }
   const [allDay, setAllDay] = useState(event?.all_day ?? false)
   const [yearly, setYearly] = useState(event?.repeat_yearly ?? false)
   const [dday, setDday] = useState(event?.dday ?? false)
+  const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
   const day = event ? ymd(new Date(event.start_at)) : date
 
   const save = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    if (savingRef.current) return
     const f = new FormData(e.currentTarget)
     const start = String(f.get('day'))
     const end = String(f.get('end') ?? '')
     if (end && end < start) return notify(tr("종료 날짜가 시작 날짜보다 빨라요"))
     const until = Number(f.get('until')) || null
     const endTime = allDay ? '' : String(f.get('endTime') ?? '')
-    if (endTime && endTime <= String(f.get('time'))) return notify(tr("끝나는 시간이 시작 시간보다 빨라요"))
+    if (endTime && (!end || end === start) && endTime <= String(f.get('time'))) return notify(tr("끝나는 시간이 시작 시간보다 빨라요"))
     const row = {
       title: String(f.get('title')).trim(),
       note: String(f.get('note')).trim() || null,
       all_day: allDay,
       start_at: new Date(`${start}T${allDay ? '00:00' : f.get('time')}`).toISOString(),
-      end_at: endTime ? new Date(`${start}T${endTime}`).toISOString() : null,
+      end_at: endTime ? new Date(`${end || start}T${endTime}`).toISOString() : null,
       end_date: end && end !== start ? end : null,
       repeat_yearly: yearly,
       repeat_until_year: yearly ? until : null,
       dday,
     }
-    const { error } = event
-      ? await supabase.from('events').update(row).eq('id', event.id)
-      : await supabase.from('events').insert({ ...row, couple_id: coupleId, created_by: userId })
-    if (error) return notify(koError(error))
-    onSaved()
+    savingRef.current = true
+    setSaving(true)
+    try {
+      const { error } = event
+        ? await supabase.from('events').update(row).eq('id', event.id)
+        : await supabase.from('events').insert({ ...row, couple_id: coupleId, created_by: userId })
+      if (error) return notify(koError(error))
+      onSaved()
+    } catch (error) {
+      notify(error instanceof Error ? koError(error) : String(error))
+    } finally { savingRef.current = false; setSaving(false) }
   }
 
   const remove = async () => {
@@ -333,7 +383,7 @@ function EventDialog({ event, date, coupleId, userId, onClose, onSaved, notify }
 
   return (
     // 휴대폰에서 손이 닿기 쉬운 아래쪽 시트
-    <Drawer open anchor="bottom" onClose={onClose} slotProps={{ paper: { component: 'form', onSubmit: save,
+    <Drawer open anchor="bottom" onClose={saving ? undefined : onClose} slotProps={{ paper: { component: 'form', onSubmit: save,
       sx: { maxWidth: 560, mx: 'auto', maxHeight: '92dvh', borderRadius: '24px 24px 0 0', pb: 'env(safe-area-inset-bottom)' } } as object }}>
       <Box sx={{ width: 40, height: 4, borderRadius: 2, bgcolor: 'divider', mx: 'auto', mt: 1.5 }} />
       <DialogTitle>{event ? tr('일정 수정') : tr("새 일정")}</DialogTitle>
@@ -365,17 +415,18 @@ function EventDialog({ event, date, coupleId, userId, onClose, onSaved, notify }
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        {event && <Button color="error" onClick={remove}>{tr("삭제")}</Button>}
+        {event && <Button color="error" onClick={remove} disabled={saving}>{tr("삭제")}</Button>}
         <Box sx={{ flex: 1 }} />
-        <Button onClick={onClose}>{tr("취소")}</Button>
-        <Button type="submit" variant="contained">{event ? tr('저장') : tr("추가")}</Button>
+        <Button onClick={onClose} disabled={saving}>{tr("취소")}</Button>
+        <Button type="submit" variant="contained" disabled={saving}>{saving ? (isEnglish() ? 'Saving…' : '저장 중…') : event ? tr('저장') : tr("추가")}</Button>
       </DialogActions>
     </Drawer>
   )
 }
 
 // 하루를 시간축으로 보여 준다. 하루 종일 일정은 위에 따로, 시간 있는 일정만 축에 올린다
-function Timetable({ list, color, onPick, onAdd }: {
+function Timetable({ date, list, color, onPick, onAdd }: {
+  date: string
   list: { ev: Event; first: string; last: string }[]
   color: (ev: Event) => string
   onPick: (ev: Event) => void
@@ -383,7 +434,7 @@ function Timetable({ list, color, onPick, onAdd }: {
 }) {
   const timed = list.filter((o) => !o.ev.all_day)
   const allDay = list.filter((o) => o.ev.all_day)
-  const slots = layout(timed.map((o) => ({ ev: o.ev, ...slotOf(o.ev) })))
+  const slots = layout(timed.map((o) => ({ ev: o.ev, ...slotOf(o.ev, { date, first: o.first, last: o.last }) })))
 
   if (!list.length) {
     return (

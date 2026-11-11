@@ -50,8 +50,15 @@ export function groupByDay(events: Event[], fromDay: string, toDay: string) {
 
 // 오늘 이후(오늘 포함) 가장 가까운 시작일. 지난 일회성 일정은 null
 export function nextStart(ev: Event, today: string) {
-  const y = +today.slice(0, 4)
-  return expand(ev, [y, y + 1]).find((o) => o.first >= today)?.first ?? null
+  if (!ev.repeat_yearly) return expand(ev, []).find((o) => o.first >= today)?.first ?? null
+  const startYear = Math.max(+today.slice(0, 4), new Date(ev.start_at).getFullYear())
+  // 윤일은 다음 발생까지 최대 8년(2100년 같은 평년 세기)이 걸릴 수 있다.
+  const lastYear = Math.min(ev.repeat_until_year ?? startYear + 8, startYear + 8)
+  for (let year = startYear; year <= lastYear; year++) {
+    const occurrence = expand(ev, [year])[0]
+    if (occurrence && occurrence.first >= today) return occurrence.first
+  }
+  return null
 }
 
 // 사귄 날 = 1일. 다음 100일 단위와 다음 n주년
@@ -102,9 +109,16 @@ export function layout(items: { ev: Event; from: number; to: number }[]): Slot[]
 }
 
 // 일정 하나가 그날 차지하는 시간대. 끝 시각이 없으면 1시간으로 본다
-export function slotOf(ev: Event): { from: number; to: number } {
+export function slotOf(ev: Event, occurrence?: { date: string; first: string; last: string }): { from: number; to: number } {
   const s = new Date(ev.start_at)
   const from = s.getHours() * 60 + s.getMinutes()
+  if (occurrence && occurrence.first !== occurrence.last) {
+    const start = occurrence.date === occurrence.first ? from : 0
+    const end = occurrence.date === occurrence.last && ev.end_at
+      ? new Date(ev.end_at).getHours() * 60 + new Date(ev.end_at).getMinutes()
+      : 24 * 60
+    return { from: start, to: end }
+  }
   if (!ev.end_at) return { from, to: Math.min(from + 60, 24 * 60) }
   const e = new Date(ev.end_at)
   const sameDay = ymd(e) === ymd(s)

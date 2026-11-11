@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "oxlint",
+    "lint": "oxlint src test --ignore-pattern node_modules --ignore-pattern dist",
     "preview": "vite preview",
-    "test": "node test/ics.test.ts && node test/repeat.test.ts && node test/holidays.test.ts && node test/weather.test.ts"
+    "test": "node test/ics.test.ts && node test/repeat.test.ts && node test/photoUpload.test.ts && node test/holidays.test.ts && node test/weather.test.ts"
   },
   "dependencies": {
     "@animateicons/react": "^0.13.0",

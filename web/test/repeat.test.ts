@@ -27,6 +27,10 @@ assert.equal(longRange.get('2025-01-03')?.[0].last, '2035-01-01')
 assert.equal(nextStart({ ...base, repeat_yearly: true }, '2025-12-31'), '2026-12-30')
 assert.equal(nextStart({ ...base, repeat_yearly: true }, '2025-12-30'), '2025-12-30')
 assert.equal(nextStart(base, '2025-01-01'), null)
+assert.equal(nextStart(leap, '2025-03-01'), '2028-02-29')
+assert.equal(nextStart(leap, '2097-03-01'), '2104-02-29')
+assert.equal(nextStart({ ...leap, repeat_until_year: 2027 }, '2025-03-01'), null)
+assert.equal(nextStart({ ...base, start_at: new Date(2030, 11, 30, 12).toISOString(), repeat_yearly: true }, '2025-01-01'), '2030-12-30')
 
 // 사귄 날 = 1일
 assert.deepEqual(coupleDays('2025-01-01', '2025-01-01'), { n: 1, hundred: { n: 100, left: 99 }, anniversary: { years: 1, left: 365 } })
@@ -59,4 +63,8 @@ console.log('repeat ok')
 // 끝 시각이 없으면 1시간짜리로 본다
 assert.deepEqual(slotOf({ ...base, start_at: new Date(2025, 0, 2, 9, 30).toISOString(), end_at: null }), { from: 570, to: 630 })
 assert.deepEqual(slotOf({ ...base, start_at: new Date(2025, 0, 2, 9, 30).toISOString(), end_at: new Date(2025, 0, 2, 11, 0).toISOString() }), { from: 570, to: 660 })
+const multi = { ...base, start_at: new Date(2025, 0, 2, 22).toISOString(), end_date: '2025-01-04', end_at: new Date(2025, 0, 4, 8).toISOString() }
+assert.deepEqual(slotOf(multi, { date: '2025-01-02', first: '2025-01-02', last: '2025-01-04' }), { from: 1320, to: 1440 })
+assert.deepEqual(slotOf(multi, { date: '2025-01-03', first: '2025-01-02', last: '2025-01-04' }), { from: 0, to: 1440 })
+assert.deepEqual(slotOf(multi, { date: '2025-01-04', first: '2025-01-02', last: '2025-01-04' }), { from: 0, to: 480 })
 console.log('layout ok')
