@@ -49,3 +49,13 @@ body { -webkit-font-smoothing: antialiased; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; }
 }
+
+/* Keep titles readable when translated labels need more space. */
+@media (max-width: 359px) {
+  .home-screen > .screen-heading { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 12px; }
+  .home-screen > .screen-heading > button { grid-column: 2; justify-self: start; }
+  .calendar-screen > .screen-heading { flex-wrap: wrap; row-gap: 8px; }
+  .calendar-screen > .screen-heading > div:first-child { flex-basis: 100%; }
+  .day-photos-heading { flex-wrap: wrap; gap: 8px; }
+  .day-photos-heading > h2 { flex-basis: 100%; }
+}

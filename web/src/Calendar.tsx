@@ -297,7 +297,7 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
       </Stack>
       )}
 
-      <Stack direction="row" sx={{ alignItems: 'center', mt: 3.5, mb: 1 }}>
+      <Stack className="day-photos-heading" direction="row" sx={{ alignItems: 'center', mt: 3.5, mb: 1 }}>
         <Typography component="h2" sx={{ fontSize: 17, fontWeight: 700, flex: 1 }}>{tr("이날의 사진")}</Typography>
         <Button component="label" size="small" startIcon={<ImageIcon size={18} />} disabled={uploading || !!failedUpload}>
           {uploading ? tr('올리는 중…') : tr("사진 올리기")}

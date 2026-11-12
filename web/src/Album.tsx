@@ -1,5 +1,5 @@
 import { isEnglish, locale, tr } from './language'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Box, Button, Card, Stack, Typography } from '@mui/material'
 import { ImageIcon, ChevronRightIcon } from './icons'
 import { koError, supabase } from './supabase'
@@ -60,16 +60,19 @@ export default function Album({ coupleId, userId, active, photoVersion, notify, 
     load(first)
   }, [active, load, photoVersion])
 
-  if (photos === null && !failed) return <GridSkeleton />
+  // 탭/언어가 바뀌어도 사진 목록이 같으면 월별 그룹은 다시 만들지 않는다.
+  const months = useMemo(() => {
+    const grouped = new Map<string, Photo[]>()
+    for (const photo of photos ?? []) {
+      const key = photo.photo_date.slice(0, 7)
+      const rows = grouped.get(key)
+      if (rows) rows.push(photo)
+      else grouped.set(key, [photo])
+    }
+    return grouped
+  }, [photos])
 
-  // 월별로 묶는다 (photo_date 내림차순이라 순서가 유지된다)
-  const months = new Map<string, Photo[]>()
-  for (const p of photos ?? []) {
-    const k = p.photo_date.slice(0, 7)
-    const rows = months.get(k)
-    if (rows) rows.push(p)
-    else months.set(k, [p])
-  }
+  if (photos === null && !failed) return <GridSkeleton />
 
   return (
     <Box className="screen album-screen">
@@ -77,8 +80,8 @@ export default function Album({ coupleId, userId, active, photoVersion, notify, 
         <Typography component="h1" sx={{ fontSize: 25, fontWeight: 750, letterSpacing: '-.04em', lineHeight: 1.2 }}>{tr('앨범')}</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{isEnglish() ? 'The moments we saved together' : '함께 보낸 순간을 모아두었어요'}</Typography>
       </Box>
-      {failed && photos === null && <Card sx={{ p: 2 }}>
-        <Typography variant="body2" color="text.secondary">{isEnglish() ? 'Could not load your photos.' : '사진을 불러오지 못했어요.'}</Typography>
+      {failed && <Card sx={{ p: 2 }}>
+        <Typography variant="body2" color="text.secondary">{isEnglish() ? 'Could not refresh your photos.' : '사진 목록을 불러오지 못했어요.'}</Typography>
         <Button size="small" onClick={() => load(false)} sx={{ mt: 0.5, px: 0 }}>{isEnglish() ? 'Try again' : '다시 불러오기'}</Button>
       </Card>}
       {photos?.length === 0 && (

@@ -9,7 +9,6 @@ import {
 } from './icons'
 import { auth, koError, supabase } from './supabase'
 import { enablePush, pushEnabled, pushSupported } from './push'
-import ImportIcs from './ImportIcs'
 import { signedUrl } from './Photos'
 import { DEFAULT_FIT, FitAvatar, type Fit } from './imageFitView'
 import { fxOn, setFxOn } from './GlassFx'
@@ -17,12 +16,16 @@ import { avatarFit, type TabProps } from './Home'
 import { isEnglish, useLanguage } from './language'
 
 const ImageFitDialog = lazy(() => import('./ImageFit'))
+const ImportIcs = lazy(() => import('./ImportIcs'))
 
 const PALETTE = ['#ff6b8b', '#ff7a59', '#f59f00', '#40c057', '#12b886', '#15aabf', '#5b8def', '#7950f2', '#be4bdb', '#868e96']
 
 export default function Settings({ coupleId, userId, active, coupleVersion, notify, profiles, colorOf, reloadProfiles, onLeft }: TabProps) {
   const { palette } = useTheme()
   const { language, setLanguage } = useLanguage()
+  const colorSaving = useRef(false)
+  const [savingColor, setSavingColor] = useState(false)
+  const coverLoadId = useRef(0)
   const [leaving, setLeaving] = useState(false)
   const [push, setPush] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -37,9 +40,13 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
   }, [])
 
   const loadCover = useCallback(async () => {
+    const id = ++coverLoadId.current
     const { data } = await supabase.from('couples').select('cover_path,cover_zoom,cover_x,cover_y').eq('id', coupleId).single()
-    if (!data) return
-    setCover({ url: await signedUrl(data.cover_path), path: data.cover_path, fit: { zoom: data.cover_zoom, x: data.cover_x, y: data.cover_y } })
+    if (id !== coverLoadId.current) return
+    if (!data) { lastCoupleVersion.current = -1; return }
+    const url = await signedUrl(data.cover_path)
+    if (id !== coverLoadId.current) return
+    setCover({ url, path: data.cover_path, fit: { zoom: data.cover_zoom, x: data.cover_x, y: data.cover_y } })
     coverFetchedAt.current = Date.now()
   }, [coupleId])
   useEffect(() => {
@@ -90,9 +97,17 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
   }
 
   const pickColor = async (color: string) => {
-    const { error } = await supabase.from('profiles').update({ color }).eq('id', userId)
-    if (error) return notify(koError(error))
-    reloadProfiles()
+    if (color === colorOf(userId) || colorSaving.current) return
+    colorSaving.current = true
+    setSavingColor(true)
+    try {
+      const { error } = await supabase.from('profiles').update({ color }).eq('id', userId)
+      if (error) return notify(koError(error))
+      await reloadProfiles()
+    } finally {
+      colorSaving.current = false
+      setSavingColor(false)
+    }
   }
 
   return (
@@ -127,7 +142,7 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
             <Box role="radiogroup" aria-label={tr('내 일정 색상')} sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
               {PALETTE.map((c) => {
                 const on = c === myColor
-                return <ButtonBase key={c} role="radio" aria-checked={on} aria-label={isEnglish() ? 'Color ' + c : '색상 ' + c} onClick={() => pickColor(c)}
+                return <ButtonBase key={c} role="radio" disabled={savingColor} aria-checked={on} aria-label={isEnglish() ? 'Color ' + c : '색상 ' + c} onClick={() => pickColor(c)}
                   sx={{ width: 40, height: 40, borderRadius: '50%', color: palette.getContrastText(c),
                     '&:focus-visible': { outline: '2px solid var(--mui-palette-primary-main)', outlineOffset: 1 } }}>
                   <Box sx={{ width: 30, height: 30, borderRadius: '50%', bgcolor: c, display: 'grid', placeItems: 'center',
@@ -181,7 +196,7 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
               <ListItemText primary={tr('캘린더 가져오기')} secondary={tr('폰 캘린더에서 내보낸 .ics 파일의 일정을 복사해요')} />
               <Box sx={{ color: 'text.disabled', lineHeight: 0, ml: 1, transform: importing ? 'rotate(90deg)' : 'none', transition: 'transform .2s', '@media (prefers-reduced-motion: reduce)': { transition: 'none' } }}><ChevronRightIcon size={18} /></Box>
             </ListItemButton>
-            {importing && <Box sx={{ px: 2, pb: 2 }}><ImportIcs coupleId={coupleId} userId={userId} onDone={() => { setImporting(false); notify(tr('일정을 가져왔어요')) }} /></Box>}
+            {importing && <Box sx={{ px: 2, pb: 2 }}><Suspense fallback={<Typography variant="body2">{isEnglish() ? 'Loading…' : '불러오는 중…'}</Typography>}><ImportIcs coupleId={coupleId} userId={userId} onDone={() => { setImporting(false); notify(tr('일정을 가져왔어요')) }} /></Suspense></Box>}
             <ListItemButton onClick={() => setLeaving(true)} sx={{ px: 2, py: 1.5, borderTop: 1, borderColor: 'divider' }}>
               <ListItemIcon><UnlinkIcon size={20} /></ListItemIcon>
               <ListItemText primary={tr('연결 끊기')} secondary={tr('같은 사람과 다시 연결하면 일정과 사진이 그대로 돌아와요')} />
@@ -236,7 +251,7 @@ function NameField({ value, onSave }: { value: string; onSave: (v: string) => vo
   useEffect(() => { setV(value) }, [value])
   return (
     <TextField id="settings-name" size="small" placeholder={tr("예: 병현")} value={v} onChange={(e) => setV(e.target.value)}
-      onBlur={() => onSave(v.trim())} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+      onBlur={() => onSave(v.trim())} onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && (e.target as HTMLInputElement).blur()}
       helperText={tr("홈 메인 카드와 설정에 보이는 이름이에요 (20자까지)")}
       slotProps={{ htmlInput: { maxLength: 20 } }} />
   )
