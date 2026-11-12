@@ -1,3 +1,4 @@
+html { touch-action: pan-x pan-y; }
 :root { --moro-feature: #eee9f7; }
 [data-dark] { --moro-feature: #2b2636; }
 body { -webkit-font-smoothing: antialiased; }
