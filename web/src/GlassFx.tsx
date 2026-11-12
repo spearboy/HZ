@@ -3,10 +3,6 @@ import { Box } from '@mui/material'
 
 // 카드 유리에 서린 김과 맺힌 물방울. 손으로 문지르면 닦인다.
 // 캔버스에 한 번만 그려 두고, 닦을 때는 그 자리를 지우기만 한다(destination-out). 매 프레임 다시 그리지 않는다
-export const FX_KEY = 'weatherFx'
-export const fxOn = () => { try { return localStorage.getItem(FX_KEY) !== 'off' } catch { return true } }
-export const setFxOn = (on: boolean) => { try { localStorage.setItem(FX_KEY, on ? 'on' : 'off') } catch { /* 저장 못 해도 이번 세션엔 적용된다 */ } }
-
 // 같은 날에는 같은 모양이 나오게 하는 작은 난수 (seed만 있으면 재현된다)
 const rng = (seed: number) => () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296)
 

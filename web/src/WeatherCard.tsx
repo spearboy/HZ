@@ -6,12 +6,12 @@ import { keyframes } from '@emotion/react'
 import { weatherFx, weatherText, type Weather } from './weather'
 import { isEnglish, tr } from './language'
 
-const icon = (code: number) => {
-  if (code === 0) return SunIcon
-  if (code <= 2) return CloudSunIcon
-  if (code <= 48) return CloudIcon
-  if (code >= 95) return CloudLightningIcon
-  return weatherFx(code) === 'snow' ? SnowflakeIcon : UmbrellaIcon
+function WeatherIcon({ code, size }: { code: number; size: number }) {
+  if (code === 0) return <SunIcon size={size} />
+  if (code <= 2) return <CloudSunIcon size={size} />
+  if (code <= 48) return <CloudIcon size={size} />
+  if (code >= 95) return <CloudLightningIcon size={size} />
+  return weatherFx(code) === 'snow' ? <SnowflakeIcon size={size} /> : <UmbrellaIcon size={size} />
 }
 
 // 메인 카드 위에 까는 비/눈. 요소를 수백 개 만드는 대신 배경 패턴 두세 겹을 흘린다
@@ -44,17 +44,16 @@ export default function WeatherCard({ w, compact = false }: { w: Weather | null 
   if (w === undefined) return compact ? <Skeleton variant="rounded" width={76} height={34} /> : <Skeleton variant="rounded" height={68} sx={{ mb: 3, borderRadius: '18px' }} />
   if (w === null) return null // 날씨를 못 받아오면 자리만 비운다
 
-  const Icon = icon(w.code)
   if (compact) return <Stack direction="row" spacing={0.75} aria-label={`${isEnglish() ? 'Seoul' : '서울'} · ${tr(weatherText(w.code))} ${w.temp}°`}
     sx={{ alignItems: 'center', color: 'text.secondary', flexShrink: 0 }}>
-    <Icon size={18} /><Typography variant="body2" sx={{ fontWeight: 650, color: 'text.primary' }}>{w.temp}°</Typography>
+    <WeatherIcon code={w.code} size={18} /><Typography variant="body2" sx={{ fontWeight: 650, color: 'text.primary' }}>{w.temp}°</Typography>
   </Stack>
   return (
     <Card sx={{ mb: 3 }}>
       <Stack direction="row" spacing={1.5} sx={{ p: 1.75, alignItems: 'center' }}>
         <Box sx={{ width: 44, height: 44, borderRadius: '50%', display: 'grid', placeItems: 'center', flexShrink: 0,
           bgcolor: 'color-mix(in srgb, var(--mui-palette-primary-main) 14%, transparent)', color: 'primary.main' }}>
-          <Icon size={23} />
+          <WeatherIcon code={w.code} size={23} />
         </Box>
         <Box sx={{ minWidth: 0 }}>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline' }}>

@@ -9,10 +9,11 @@ import {
 } from './icons'
 import { auth, koError, supabase } from './supabase'
 import { enablePush, pushEnabled, pushSupported } from './push'
-import { signedUrl } from './Photos'
-import { DEFAULT_FIT, FitAvatar, type Fit } from './imageFitView'
-import { fxOn, setFxOn } from './GlassFx'
-import { avatarFit, type TabProps } from './Home'
+import { signedUrl } from './photoStorage'
+import { FitAvatar } from './imageFitView'
+import { DEFAULT_FIT, type Fit } from './imageFitStyles'
+import { useWeatherFx, setFxOn } from './weatherPreferences'
+import { avatarFit, type TabProps } from './homeTypes'
 import { isEnglish, useLanguage } from './language'
 
 const ImageFitDialog = lazy(() => import('./ImageFit'))
@@ -30,7 +31,7 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
   const [push, setPush] = useState(false)
   const [importing, setImporting] = useState(false)
   const [picking, setPicking] = useState<'avatar' | 'cover' | null>(null)
-  const [fx, setFx] = useState(fxOn)
+  const fx = useWeatherFx()
   const [cover, setCover] = useState<{ url: string | null; path: string | null; fit: Fit }>({ url: null, path: null, fit: DEFAULT_FIT })
   const lastCoupleVersion = useRef(-1)
   const coverFetchedAt = useRef(0)
@@ -176,7 +177,7 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
             <ListItem sx={{ px: 2, py: 1.5, alignItems: 'flex-start', gap: 1, borderTop: 1, borderColor: 'divider' }}>
               <ListItemIcon sx={{ mt: 0.5 }}><DropletIcon size={20} /></ListItemIcon>
               <ListItemText sx={{ minWidth: 0, my: 0 }} primary={tr('날씨 효과')} secondary={tr('비·눈 오는 날 메인 카드에 물방울과 김이 서려요 (문지르면 닦여요)')} />
-              <Switch checked={fx} onChange={(e) => { setFx(e.target.checked); setFxOn(e.target.checked) }} slotProps={{ input: { 'aria-label': tr('날씨 효과') } }} />
+              <Switch checked={fx} onChange={(e) => { setFxOn(e.target.checked) }} slotProps={{ input: { 'aria-label': tr('날씨 효과') } }} />
             </ListItem>
             <ListItemButton onClick={() => setPicking('cover')} sx={{ px: 2, py: 1.5, borderTop: 1, borderColor: 'divider' }}>
               <ListItemIcon><ImageIcon size={20} /></ListItemIcon>
@@ -248,7 +249,8 @@ function SettingsSection({ title, description, children }: { title: string; desc
 // 입력 중에는 제 상태로 두고, 포커스를 벗어날 때만 저장한다 (글자마다 DB를 때리지 않게)
 function NameField({ value, onSave }: { value: string; onSave: (v: string) => void }) {
   const [v, setV] = useState(value)
-  useEffect(() => { setV(value) }, [value])
+  const [previousValue, setPreviousValue] = useState(value)
+  if (previousValue !== value) { setPreviousValue(value); setV(value) }
   return (
     <TextField id="settings-name" size="small" placeholder={tr("예: 병현")} value={v} onChange={(e) => setV(e.target.value)}
       onBlur={() => onSave(v.trim())} onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && (e.target as HTMLInputElement).blur()}

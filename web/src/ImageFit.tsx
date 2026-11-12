@@ -2,10 +2,10 @@ import { tr } from './language'
 import { useEffect, useState } from 'react'
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Slider, Stack, Typography } from '@mui/material'
 import { ImageIcon } from './icons'
-import { bucket, resize } from './Photos'
+import { bucket, resize } from './photoStorage'
 import { koError } from './supabase'
 
-import { DEFAULT_FIT, fitImg, type Fit } from './imageFitView'
+import { DEFAULT_FIT, fitImg, type Fit } from './imageFitStyles'
 
 export default function ImageFitDialog({ title, url, path, fit, prefix, max, round, ratio, onClose, onSave, onError }: {
   title: string
@@ -21,18 +21,14 @@ export default function ImageFitDialog({ title, url, path, fit, prefix, max, rou
   onError: (m: string) => void
 }) {
   const [file, setFile] = useState<File | null>(null)
-  const [preview, setPreview] = useState<string | null>(null)
   const [cur, setCur] = useState(fit)
   const [busy, setBusy] = useState(false)
-
-  // 미리보기용 blob URL은 파일이 바뀌거나 창이 닫힐 때 반드시 해제한다
-  useEffect(() => {
-    if (!file) return setPreview(null)
-    const u = URL.createObjectURL(file)
-    setPreview(u)
-    return () => URL.revokeObjectURL(u)
-  }, [file])
-
+  const [preview, setPreview] = useState<string | null>(null)
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview) }, [preview])
+  const pickFile = (next: File) => {
+    setFile(next)
+    setPreview(URL.createObjectURL(next))
+  }
   const shown = preview ?? url
 
   const save = async () => {
@@ -80,7 +76,7 @@ export default function ImageFitDialog({ title, url, path, fit, prefix, max, rou
 
         <Button component="label" fullWidth startIcon={<ImageIcon size={18} />} disabled={busy} sx={{ mt: 2 }}>
           {shown ? tr('다른 사진 고르기') : tr("사진 고르기")}
-          <input type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])} />
+          <input type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && pickFile(e.target.files[0])} />
         </Button>
 
         {shown && (

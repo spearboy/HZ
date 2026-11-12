@@ -2,7 +2,7 @@ import './design.css'
 // Development-only visual fixture. Every network request is intercepted; no real account or writes.
 if (import.meta.env.DEV) {
   const params = new URLSearchParams(location.search)
-  const { setCurrentLanguage, LanguageChoice } = await import('./language')
+  const { setCurrentLanguage } = await import('./language')
   setCurrentLanguage(params.get('language') === 'en' ? 'en' : 'ko')
   localStorage.setItem('mui-mode', params.get('mode') === 'dark' ? 'dark' : 'light')
   const day = new Date(); day.setHours(12, 0, 0, 0)
@@ -24,11 +24,7 @@ if (import.meta.env.DEV) {
   const channel = { on() { return this }, subscribe() { return this }, unsubscribe: async () => 'ok' }
   supabase.channel = () => channel as unknown as ReturnType<typeof supabase.channel>
   supabase.removeChannel = async () => 'ok'
-  const [{ createRoot }, { useState }, { ThemeProvider, CssBaseline }, { theme }, { default: Home }] = await Promise.all([import('react-dom/client'), import('react'), import('@mui/material'), import('./theme'), import('./Home')])
-  function Preview() {
-    const [language, updateLanguage] = useState<'ko' | 'en'>(params.get('language') === 'en' ? 'en' : 'ko')
-    return <LanguageChoice.Provider value={{ language, setLanguage: next => { setCurrentLanguage(next); updateLanguage(next) } }}><ThemeProvider theme={theme} defaultMode="light"><CssBaseline/><Home coupleId="preview" userId="preview-0" onLeft={() => {}}/></ThemeProvider></LanguageChoice.Provider>
-  }
+  const [{ createRoot }, { default: Preview }] = await Promise.all([import('react-dom/client'), import('./DesignPreview')])
   createRoot(document.getElementById('root')!).render(<Preview/>)
   const observer = new MutationObserver(() => {
     const tabs = document.querySelectorAll<HTMLButtonElement>('.MuiBottomNavigationAction-root')

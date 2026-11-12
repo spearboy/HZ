@@ -1,3 +1,5 @@
+import { useToday } from './useToday'
+import { monthRange } from './calendarDates'
 import { isEnglish, locale, tr } from './language'
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
@@ -9,8 +11,9 @@ import {
 } from './icons'
 import { keyframes } from '@emotion/react'
 import { koError, supabase } from './supabase'
-import { PHOTO_COLUMNS, PhotoGrid, uploadPhotos, withThumbs, type Photo, type PhotoUpload } from './Photos'
-import type { TabProps } from './Home'
+import { PhotoGrid } from './Photos'
+import { PHOTO_COLUMNS, uploadPhotos, withThumbs, type Photo, type PhotoUpload } from './photoStorage'
+import type { TabProps } from './homeTypes'
 import { groupByDay, hm, layout, slotOf, ymd, type Event } from './repeat'
 import { eventsInRange } from './events'
 import { holidayName } from './holidays'
@@ -33,8 +36,9 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
   const [events, setEvents] = useState<Event[]>([])
   const [photos, setPhotos] = useState<Photo[]>([])
-  const [dayPhotos, setDayPhotos] = useState<Photo[]>([])
+  const [dayPhotoResult, setDayPhotoResult] = useState<{ photos: Photo[]; date: string; source: Photo[] } | null>(null)
   const [selected, setSelected] = useState(() => ymd(new Date()))
+  const dayPhotos = dayPhotoResult?.date === selected && dayPhotoResult.source === photos ? dayPhotoResult.photos : []
   const [editing, setEditing] = useState<Event | 'new' | null>(null)
   const [uploading, setUploading] = useState(false)
   const [failedUpload, setFailedUpload] = useState<{ files: PhotoUpload[]; date: string } | null>(null)
@@ -61,20 +65,16 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
     setView(v)
     try { localStorage.setItem(VIEW_KEY, v) } catch { /* 저장 못 해도 이번 세션엔 적용된다 */ }
   }
-  useEffect(() => {
-    if (!target) return
-    const [year, monthNumber] = target.date.split('-').map(Number)
-    setSelected(target.date)
-    setMonth(new Date(year, monthNumber - 1, 1))
-  }, [target])
-
-  // 6주 고정 그리드: 그 달 1일이 속한 주의 일요일부터 42일
-  const gridStart = new Date(month.getFullYear(), month.getMonth(), 1 - month.getDay())
-  const days = Array.from({ length: 42 }, (_, i) => new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i))
-  const from = days[0].toISOString()
-  const to = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + 42).toISOString()
-  const fromDay = ymd(days[0])
-  const toDay = ymd(days[41])
+  const [previousTarget, setPreviousTarget] = useState<CalendarProps['target']>(null)
+  if (target !== previousTarget) {
+    setPreviousTarget(target)
+    if (target) {
+      const [year, monthNumber] = target.date.split('-').map(Number)
+      setSelected(target.date)
+      setMonth(new Date(year, monthNumber - 1, 1))
+    }
+  }
+  const { days, from, to, fromDay, toDay } = useMemo(() => monthRange(month), [month])
 
   const loadEvents = useCallback(async () => {
     const id = ++eventLoadId.current
@@ -110,9 +110,8 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
 
   useEffect(() => {
     let active = true
-    setDayPhotos([])
     withThumbs(photos.filter((p) => p.photo_date === selected)).then((rows) => {
-      if (active) setDayPhotos(rows)
+      if (active) setDayPhotoResult({ photos: rows, date: selected, source: photos })
     })
     return () => { active = false }
   }, [photos, selected])
@@ -136,7 +135,7 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
     } finally { uploadRef.current = false; setUploading(false) }
   }
 
-  const today = ymd(new Date())
+  const today = useToday()
   const shift = (n: number) => {
     const next = new Date(month.getFullYear(), month.getMonth() + n, 1)
     const day = Math.min(+selected.slice(8), new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate())

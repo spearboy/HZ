@@ -4,7 +4,7 @@ import type { Session } from '@supabase/supabase-js'
 import { Alert, Box, Button, Card, CardContent, CircularProgress, Divider, Stack, TextField, Typography } from '@mui/material'
 import { auth, koError, supabase } from './supabase'
 import Home from './Home'
-import { clearSignedCache } from './Photos'
+import { clearSignedCache } from './photoStorage'
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
@@ -82,12 +82,13 @@ function Paired({ userId }: { userId: string }) {
   const [input, setInput] = useState('')
   const [msg, setMsg] = useState('')
 
-  const check = useCallback(async () => {
-    setMsg('')
-    const { data, error } = await supabase.from('couple_members').select('couple_id')
-    if (error) return setMsg(koError(error))
-    if (data.length !== 2) clearSignedCache()
-    setCoupleId(data.length === 2 ? data[0].couple_id : null)
+  const check = useCallback(() => {
+    return supabase.from('couple_members').select('couple_id').then(({ data, error }) => {
+      if (error) return setMsg(koError(error))
+      setMsg('')
+      if (data.length !== 2) clearSignedCache()
+      setCoupleId(data.length === 2 ? data[0].couple_id : null)
+    })
   }, [])
 
   useEffect(() => { check() }, [check])

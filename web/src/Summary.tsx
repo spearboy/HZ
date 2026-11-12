@@ -1,21 +1,25 @@
+import { useToday } from './useToday'
+import { weekRange } from './calendarDates'
 import { isEnglish, locale, tr } from './language'
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Box, Button, ButtonBase, Card, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Skeleton, Stack, TextField, Typography, useTheme,
 } from '@mui/material'
 import { ChevronRightIcon, HeartIcon, PencilIcon } from './icons'
 import { koError, supabase } from './supabase'
-import { signedUrl } from './Photos'
-import { DEFAULT_FIT, FitAvatar, fitImg, type Fit } from './imageFitView'
-import { avatarFit } from './Home'
+import { signedUrl } from './photoStorage'
+import { FitAvatar } from './imageFitView'
+import { DEFAULT_FIT, fitImg, type Fit } from './imageFitStyles'
+import { avatarFit } from './homeTypes'
 import WeatherCard, { WeatherFx } from './WeatherCard'
-import GlassFx, { fxOn } from './GlassFx'
+import GlassFx from './GlassFx'
+import { useWeatherFx } from './weatherPreferences'
 import { getWeather, weatherFx, type Weather } from './weather'
-import { coupleDays, dayDiff, dLabel, groupByDay, hm, nextStart, ymd, type Event } from './repeat'
+import { coupleDays, dayDiff, dLabel, groupByDay, hm, nextStart, type Event } from './repeat'
 import { ddayEvents, eventsInRange } from './events'
 import { holidayName } from './holidays'
 import { SummarySkeleton } from './Skeletons'
-import type { TabProps } from './Home'
+import type { TabProps } from './homeTypes'
 import { poke } from './poke'
 import { usePageVisible } from './usePageVisible'
 
@@ -39,7 +43,7 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
   const [cover, setCover] = useState<{ url: string | null; path: string | null; fit: Fit }>({ url: null, path: null, fit: DEFAULT_FIT })
   const [weather, setWeather] = useState<Weather | null | undefined>(undefined)
   // 설정에서 끄면 효과를 아예 안 그린다. 탭을 옮기면 다시 읽히므로 따로 전파할 필요가 없다
-  const [fx, setFx] = useState(fxOn)
+  const fx = useWeatherFx()
   const [editing, setEditing] = useState(false)
   const [pickingCover, setPickingCover] = useState(false)
   const [coverRatio, setCoverRatio] = useState(16 / 9)
@@ -51,22 +55,18 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
   const coupleFetchedAt = useRef(0)
   const eventsFetchedAt = useRef(0)
 
-  const now = new Date()
-  const today = ymd(now)
-  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7))
-  const days = Array.from({ length: 7 }, (_, i) => ymd(new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + i)))
-  const fromDay = days[0]
-  const from = weekStart.toISOString()
-  const to = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 7).toISOString()
+  const today = useToday()
+  const now = new Date(`${today}T00:00`)
+  const { days, fromDay, from, to } = useMemo(() => weekRange(today), [today])
 
   const loadCouple = useCallback(async () => {
     const id = ++coupleLoadId.current
-    setCoupleError(false)
     const c = await supabase.from('couples').select('started_on,cover_path,cover_zoom,cover_x,cover_y').eq('id', coupleId).single()
     if (id !== coupleLoadId.current) return
     if (c.error) { coupleKey.current = -1; setCoupleError(true); return notify(koError(c.error)) }
     const url = await signedUrl(c.data.cover_path)
     if (id !== coupleLoadId.current) return
+    setCoupleError(false)
     setStartedOn(c.data.started_on)
     coupleFetchedAt.current = Date.now()
     setCover({ url, path: c.data.cover_path, fit: { zoom: c.data.cover_zoom, x: c.data.cover_x, y: c.data.cover_y } })
@@ -87,7 +87,7 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
     const key = `${from}/${to}/${eventVersion}`
     if (active && (eventKey.current !== key || (eventsFetchedAt.current > 0 && Date.now() - eventsFetchedAt.current > 60_000))) { eventKey.current = key; loadEvents() }
   }, [active, from, to, eventVersion, loadEvents])
-  useEffect(() => { if (active) { setFx(fxOn()); getWeather().then(setWeather) } }, [active])
+  useEffect(() => { if (active) { getWeather().then(setWeather) } }, [active])
 
   const saveStart = async (value: string) => {
     const { error } = await supabase.from('couples').update({ started_on: value || null }).eq('id', coupleId)
@@ -282,13 +282,14 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
 
 function StartDialog({ value, onClose, onSave, onEditCover }: { value: string; onClose: () => void; onSave: (v: string) => void; onEditCover: () => void }) {
   const [v, setV] = useState(value)
+  const today = useToday()
   return (
     <Dialog open onClose={onClose} fullWidth maxWidth="xs">
       <DialogTitle>{tr("홈 카드 수정")}</DialogTitle>
       <DialogContent>
         <Button fullWidth variant="outlined" onClick={onEditCover} sx={{ mb: 2 }}>{tr("배경 사진 변경 · 위치 조정")}</Button>
         <TextField type="date" label={tr("날짜")} value={v} onChange={(e) => setV(e.target.value)} sx={{ mt: 1 }}
-          slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: ymd(new Date()) } }} />
+          slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: today } }} />
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={onClose}>{tr("취소")}</Button>
