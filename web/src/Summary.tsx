@@ -74,11 +74,11 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
 
   const loadEvents = useCallback(async () => {
     const id = ++eventLoadId.current
-    const [w, d] = await Promise.all([eventsInRange(from, to, fromDay), ddayEvents()])
+    const [w, d] = await Promise.all([eventsInRange(coupleId, from, to, fromDay), ddayEvents(coupleId)])
     if (id !== eventLoadId.current) return
     if (w.error || d.error) { eventKey.current = ''; setEventsError(true); return notify(koError((w.error ?? d.error)!)) }
     setWeek(w.data); setDdays(d.data); setEventsReady(true); setEventsError(false); eventsFetchedAt.current = Date.now()
-  }, [from, to, fromDay, notify])
+  }, [coupleId, from, to, fromDay, notify])
 
   useEffect(() => {
     if (active && (coupleKey.current !== coupleVersion || (coupleFetchedAt.current > 0 && Date.now() - coupleFetchedAt.current > 60_000))) { coupleKey.current = coupleVersion; loadCouple() }

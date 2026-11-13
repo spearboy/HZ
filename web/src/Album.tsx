@@ -9,8 +9,7 @@ import type { TabProps } from './homeTypes'
 import { GridSkeleton } from './Skeletons'
 import { ymd } from './repeat'
 
-// shortcut: 최근 300장만 불러온다. 사진이 많아지면 월 단위 무한 스크롤로 바꾼다
-const LIMIT = 300
+const PAGE_SIZE = 48
 
 // 사진 목록을 기기에 남겨 두고, 탭을 열면 네트워크를 기다리지 않고 먼저 그린다.
 // 서버 응답이 오면 조용히 덮어쓴다. 상대가 사진을 올리면 Realtime이 version을 올려 다시 받아 온다.
@@ -26,32 +25,71 @@ const writeRows = (coupleId: string, rows: Photo[]) => {
 export default function Album({ coupleId, userId, active, photoVersion, notify, openCalendar }: TabProps) {
   const [photos, setPhotos] = useState<Photo[] | null>(null)
   const [failed, setFailed] = useState(false)
+  const [moreFailed, setMoreFailed] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const loadId = useRef(0)
+  const moreInFlight = useRef(false)
   const lastVersion = useRef(-1)
   const fetchedAt = useRef(0)
 
   const load = useCallback(async (fromCache: boolean) => {
     const id = ++loadId.current
+    moreInFlight.current = false
+    setLoadingMore(false)
+    setHasMore(false)
+    setMoreFailed(false)
     let serverApplied = false
     // 저장해 둔 목록이 있으면 먼저 보여 준다. 썸네일 주소도 캐시에 있으면 요청이 아예 안 나간다
     if (fromCache) {
       const cached = readRows(coupleId)
-      if (cached?.length) withThumbs(cached).then(rows => {
+      if (cached?.length) withThumbs(cached.slice(0, PAGE_SIZE)).then(rows => {
         if (id === loadId.current && !serverApplied) setPhotos(rows)
       })
     }
     const { data, error } = await supabase.from('photos').select(PHOTO_COLUMNS)
-      .order('photo_date', { ascending: false }).order('created_at', { ascending: false }).limit(LIMIT)
+      .eq('couple_id', coupleId).order('photo_date', { ascending: false }).order('created_at', { ascending: false })
+      .order('id', { ascending: false }).limit(PAGE_SIZE + 1)
     if (id !== loadId.current) return
     if (error) { lastVersion.current = -1; setFailed(true); return notify(koError(error)) }
-    writeRows(coupleId, data)
-    const rows = await withThumbs(data)
+    const page = data.slice(0, PAGE_SIZE)
+    writeRows(coupleId, page)
+    const rows = await withThumbs(page)
     if (id !== loadId.current) return
     serverApplied = true
     setFailed(false)
     fetchedAt.current = Date.now()
+    setHasMore(data.length > PAGE_SIZE)
     setPhotos(rows)
   }, [coupleId, notify])
+
+  const loadMore = useCallback(async () => {
+    const cursor = photos?.at(-1)
+    if (!cursor || !hasMore || moreInFlight.current) return
+    moreInFlight.current = true
+    setLoadingMore(true)
+    setMoreFailed(false)
+    const id = loadId.current
+    const { photo_date, created_at } = cursor
+    const { data, error } = await supabase.from('photos').select(PHOTO_COLUMNS).eq('couple_id', coupleId)
+      .or(`photo_date.lt.${photo_date},and(photo_date.eq.${photo_date},created_at.lt."${created_at}"),and(photo_date.eq.${photo_date},created_at.eq."${created_at}",id.lt.${cursor.id})`)
+      .order('photo_date', { ascending: false }).order('created_at', { ascending: false })
+      .order('id', { ascending: false }).limit(PAGE_SIZE + 1)
+    if (id !== loadId.current) return
+    if (error) {
+      moreInFlight.current = false
+      setLoadingMore(false)
+      setMoreFailed(true)
+      notify(koError(error))
+      return
+    }
+    const rows = await withThumbs(data.slice(0, PAGE_SIZE))
+    if (id !== loadId.current) return
+    setPhotos(previous => [...(previous ?? []), ...rows])
+    setHasMore(data.length > PAGE_SIZE)
+    moreInFlight.current = false
+    setLoadingMore(false)
+  }, [coupleId, hasMore, notify, photos])
 
   // 캐시는 탭을 처음 열 때만 쓴다. version이 오르면(상대가 바꿈) 서버 것만 받는다
   useEffect(() => {
@@ -106,6 +144,9 @@ export default function Album({ coupleId, userId, active, photoVersion, notify, 
           </Box>
         ))}
       </Stack>
+      {hasMore && <Button fullWidth disabled={loadingMore} onClick={loadMore} sx={{ mt: 2 }}>
+        {loadingMore ? (isEnglish() ? 'Loading…' : '불러오는 중…') : moreFailed ? (isEnglish() ? 'Try again' : '다시 불러오기') : (isEnglish() ? 'Load older photos' : '이전 사진 더 보기')}
+      </Button>}
     </Box>
   )
 }

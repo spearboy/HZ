@@ -79,25 +79,25 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
   const loadEvents = useCallback(async () => {
     const id = ++eventLoadId.current
     setEventsError(false)
-    const ev = await eventsInRange(from, to, fromDay)
+    const ev = await eventsInRange(coupleId, from, to, fromDay)
     if (id !== eventLoadId.current) return
     if (ev.error) { eventKey.current = ''; setEventsError(true); return notify(koError(ev.error)) }
     setEvents(ev.data)
     setEventsRange(`${from}/${to}`)
     eventsFetchedAt.current = Date.now()
     setEventsReady(true)
-  }, [from, to, fromDay, notify])
+  }, [coupleId, from, to, fromDay, notify])
   const loadPhotos = useCallback(async () => {
     const id = ++photoLoadId.current
     setPhotosError(false)
-    const ph = await supabase.from('photos').select(PHOTO_COLUMNS).gte('photo_date', fromDay).lte('photo_date', toDay).order('created_at')
+    const ph = await supabase.from('photos').select(PHOTO_COLUMNS).eq('couple_id', coupleId).gte('photo_date', fromDay).lte('photo_date', toDay).order('created_at')
     if (id !== photoLoadId.current) return
     if (ph.error) { photoKey.current = ''; setPhotosError(true); return notify(koError(ph.error)) }
     setPhotos(ph.data)
     setPhotosRange(`${fromDay}/${toDay}`)
     photosFetchedAt.current = Date.now()
     setPhotosReady(true)
-  }, [fromDay, toDay, notify])
+  }, [coupleId, fromDay, toDay, notify])
 
   useEffect(() => {
     const key = `${from}/${to}/${eventVersion}`

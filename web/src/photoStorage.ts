@@ -1,9 +1,9 @@
 import { supabase } from './supabase'
-import { processPhotoUploads, type PhotoUpload } from './photoUpload'
+import { processPhotoUploads, uploadTogether, type PhotoUpload } from './photoUpload'
 export type { PhotoUpload } from './photoUpload'
 
-export type Photo = { id: string; photo_date: string; storage_path: string; thumb_path: string; uploaded_by: string; thumbUrl?: string | null }
-export const PHOTO_COLUMNS = 'id,photo_date,storage_path,thumb_path,uploaded_by'
+export type Photo = { id: string; photo_date: string; created_at: string; storage_path: string; thumb_path: string; uploaded_by: string; thumbUrl?: string | null }
+export const PHOTO_COLUMNS = 'id,photo_date,created_at,storage_path,thumb_path,uploaded_by'
 
 export const bucket = () => supabase.storage.from('photos')
 
@@ -72,12 +72,15 @@ export async function withThumbs(rows: Photo[]): Promise<Photo[]> {
 // shortcut: HEIC는 브라우저가 디코딩할 수 있을 때만 된다(사파리 O, 크롬 X). 문제가 되면 heic 변환 라이브러리 검토
 export async function resize(file: File, max: number): Promise<Blob> {
   const img = await createImageBitmap(file)
+  try { return await resizeBitmap(img, max) } finally { img.close() }
+}
+
+async function resizeBitmap(img: ImageBitmap, max: number): Promise<Blob> {
   const scale = Math.min(1, max / Math.max(img.width, img.height))
   const canvas = document.createElement('canvas')
   canvas.width = Math.round(img.width * scale)
   canvas.height = Math.round(img.height * scale)
   canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
-  img.close()
   return new Promise((ok, fail) => canvas.toBlob((b) => (b ? ok(b) : fail(new Error('이미지 변환 실패'))), 'image/jpeg', 0.85))
 }
 
@@ -91,14 +94,16 @@ export async function uploadPhotos(files: PhotoUpload[], coupleId: string, userI
     },
     save: async ({ file, id }) => {
       const { storage_path, thumb_path } = paths(id)
-      const [full, thumb] = await Promise.all([resize(file, 2048), resize(file, 400)])
-      for (const [path, blob] of [[storage_path, full], [thumb_path, thumb]] as const) {
+      const img = await createImageBitmap(file)
+      let full: Blob, thumb: Blob
+      try { [full, thumb] = await Promise.all([resizeBitmap(img, 2048), resizeBitmap(img, 400)]) } finally { img.close() }
+      await uploadTogether(([[storage_path, full], [thumb_path, thumb]] as const).map(([path, blob]) => async () => {
         const result = await bucket().upload(path, blob, { contentType: 'image/jpeg' })
         if (result.error) {
           const exists = await bucket().exists(path)
           if (exists.error || !exists.data) throw result.error
         }
-      }
+      }))
       const { error } = await supabase.from('photos').insert({ id, couple_id: coupleId, uploaded_by: userId, photo_date: date, storage_path, thumb_path })
       if (error) throw error
     },

@@ -1,10 +1,11 @@
 import { isEnglish, tr } from './language'
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState, type FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Alert, Box, Button, Card, CardContent, CircularProgress, Divider, Stack, TextField, Typography } from '@mui/material'
 import { auth, koError, supabase } from './supabase'
-import Home from './Home'
 import { clearSignedCache } from './photoStorage'
+
+const Home = lazy(() => import('./Home'))
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
@@ -118,7 +119,7 @@ function Paired({ userId }: { userId: string }) {
       <Button variant="contained" onClick={check}>{isEnglish() ? 'Try again' : '다시 시도'}</Button>
     </Centered>
   ) : <Loading />
-  if (coupleId) return <Home coupleId={coupleId} userId={userId} onLeft={() => { clearSignedCache(); setCoupleId(null); check() }} />
+  if (coupleId) return <Suspense fallback={<Loading />}><Home coupleId={coupleId} userId={userId} onLeft={() => { clearSignedCache(); setCoupleId(null); check() }} /></Suspense>
 
   return (
     <Centered title={tr("상대와 연결하기")} sub={tr("한 사람이 코드를 만들고, 다른 사람이 입력하면 연결돼요")}>

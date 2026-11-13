@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { processPhotoUploads, type PhotoUpload, type PhotoUploadStore } from '../src/photoUpload.ts'
+import { processPhotoUploads, uploadTogether, type PhotoUpload, type PhotoUploadStore } from '../src/photoUpload.ts'
 
 const items: PhotoUpload[] = ['a', 'b', 'c'].map(id => ({ id, file: {} as File }))
 const saved = new Set<string>()
@@ -28,4 +28,17 @@ const unreachable: PhotoUploadStore = {
   clean: async () => { throw new Error('unexpected cleanup') },
 }
 assert.deepEqual(await processPhotoUploads(items.map(item => ({ ...item, attempted: true })), unreachable), items.map(item => ({ ...item, attempted: true })))
+
+let finishSecond!: () => void
+let settled = false
+const second = new Promise<void>(resolve => { finishSecond = resolve })
+const parallel = uploadTogether([
+  async () => { throw new Error('first failed') },
+  async () => second,
+]).finally(() => { settled = true })
+await new Promise(resolve => setTimeout(resolve, 0))
+assert.equal(settled, false, 'cleanup must wait for the other upload')
+finishSecond()
+await assert.rejects(parallel, /first failed/)
+assert.equal(settled, true)
 console.log('photo upload retry ok')
