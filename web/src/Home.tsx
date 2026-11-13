@@ -113,10 +113,10 @@ export default function Home({ coupleId, userId, onLeft }: { coupleId: string; u
         '@media (forced-colors: active)': { bgcolor: 'Canvas', backdropFilter: 'none' } }}>
         <Box className="navigation-inner">
         <Box className="desktop-brand"><img src="/icon-192.png" alt="" width="34" height="34"/><Box><strong>MORO</strong><span>{isEnglish() ? 'Every day, together' : '함께하는 모든 날'}</span></Box></Box>
-        <BottomNavigation showLabels value={tab} onChange={(_, v) => selectTab(v)} sx={{ bgcolor: 'transparent', maxWidth: 640, mx: 'auto', height: 68, width: '100%',
-          '& .MuiBottomNavigationAction-root': { minWidth: 0, gap: 0.5, color: 'text.secondary' },
-          '& .MuiBottomNavigationAction-label': { fontSize: 12, fontWeight: 600 },
-          '& .Mui-selected .MuiBottomNavigationAction-label': { fontSize: 12 } }}>
+        <BottomNavigation showLabels value={tab} onChange={(_, v) => selectTab(v)} sx={{ bgcolor: 'transparent', maxWidth: 640, mx: 'auto', height: 58, width: '100%',
+          '& .MuiBottomNavigationAction-root': { minWidth: 0, gap: 0.25, color: 'text.secondary', paddingTop: 0.5 },
+          '& .MuiBottomNavigationAction-label': { fontSize: 11, fontWeight: 500 },
+          '& .Mui-selected .MuiBottomNavigationAction-label': { fontSize: 11, fontWeight: 600 } }}>
           {TABS.map(({ label, Icon }, i) => (
             <BottomNavigationAction key={label} aria-current={tab === i ? 'page' : undefined} aria-controls={`panel-${i}`} label={tr(label)} icon={<TabIcon Icon={Icon} active={tab === i} />} />
           ))}
@@ -132,8 +132,6 @@ export default function Home({ coupleId, userId, onLeft }: { coupleId: string; u
 
 // 탭이 선택되는 순간 그 아이콘만 한 번 움직인다
 function TabIcon({ Icon, active }: { Icon: (typeof TABS)[number]['Icon']; active: boolean }) {
-  return <Box sx={{ width: 46, height: 28, borderRadius: 3, display: 'grid', placeItems: 'center',
-    bgcolor: active ? 'color-mix(in srgb, var(--mui-palette-primary-main) 12%, transparent)' : 'transparent',
-    transition: 'background-color 200ms ease, transform 260ms cubic-bezier(.2,.8,.2,1)', transform: active ? 'scale(1)' : 'scale(.94)',
-    '@media (prefers-reduced-motion: reduce)': { transition: 'none', transform: 'none' } }}><Icon size={22} /></Box>
+  return <Box sx={{ width: 36, height: 26, display: 'grid', placeItems: 'center',
+    opacity: active ? 1 : 0.8 }}><Icon size={23} /></Box>
 }

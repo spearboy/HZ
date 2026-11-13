@@ -167,7 +167,7 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
       <Stack className="screen-heading" direction="row" spacing={0.5} sx={{ alignItems: 'center', mb: 2, px: 0.5 }}>
         <Box sx={{ flex: 1 }}>
           <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{month.getFullYear()}</Typography>
-          <Typography component="h1" sx={{ fontSize: 28, fontWeight: 750, letterSpacing: '-.04em', lineHeight: 1.2 }}>{month.toLocaleDateString(locale(), { month: 'long' })}</Typography>
+          <Typography component="h1" sx={{ fontSize: { xs: 32, md: 34 }, fontWeight: 700, letterSpacing: '-.04em', lineHeight: 1.15 }}>{month.toLocaleDateString(locale(), { month: 'long' })}</Typography>
         </Box>
         {!isThisMonth && <Button size="small" variant="outlined" onClick={goToday}>{tr("오늘")}</Button>}
         <IconButton aria-label={tr("이전 달")} onClick={() => shift(-1)}><ChevronLeftIcon size={22} /></IconButton>
@@ -206,16 +206,15 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
                 aria-label={`${d.toLocaleDateString(locale(), { month: 'long', day: 'numeric' })}${hol ? `, ${hol}` : ''}${list.length ? isEnglish() ? `, ${list.length} events` : `, 일정 ${list.length}개` : ''}${photoDays.has(k) ? isEnglish() ? ', has photos' : ', 사진 있음' : ''}`}
                 sx={{ flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', gap: '2px', py: 0.5, minHeight: { xs: 66, md: 78 }, borderRadius: '4px',
                   opacity: d.getMonth() !== month.getMonth() ? 0.6 : 1,
-                  bgcolor: isSel ? 'color-mix(in srgb, var(--mui-palette-primary-main) 9%, transparent)' : 'transparent',
-                  outline: isSel ? '1px solid var(--mui-palette-primary-main)' : 'none', outlineOffset: -1,
+                  bgcolor: 'transparent', outlineOffset: -1,
                   transition: 'background-color 180ms ease, transform 240ms cubic-bezier(.2,.8,.2,1), outline-color 180ms ease',
                   '&:active': { transform: 'scale(.94)' },
                   '&.Mui-focusVisible': { outline: '2px solid var(--mui-palette-primary-main)', outlineOffset: -2 },
                   '@media (prefers-reduced-motion: reduce)': { transition: 'none', '&:active': { transform: 'none' } } }}>
                 <Box sx={{ alignSelf: 'center', width: 26, height: 26, borderRadius: '50%', display: 'grid', placeItems: 'center',
                   fontSize: 13, fontWeight: isToday ? 800 : 500,
-                  bgcolor: isToday ? 'primary.main' : 'transparent',
-                  color: isToday ? 'primary.contrastText' : hol || dow === 0 ? 'error.main' : dow === 6 ? 'info.main' : 'text.primary' }}>
+                  bgcolor: isSel ? 'primary.main' : isToday ? 'action.selected' : 'transparent',
+                  color: isSel ? 'primary.contrastText' : hol || dow === 0 ? 'error.main' : dow === 6 ? 'info.main' : 'text.primary' }}>
                   {d.getDate()}
                 </Box>
                 {hol && (

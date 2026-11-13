@@ -114,7 +114,7 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
   return (
     <Box className="screen settings-screen">
       <Box className="screen-heading">
-        <Typography component="h1" sx={{ fontSize: 25, fontWeight: 750, letterSpacing: '-.04em', lineHeight: 1.2 }}>{tr('설정')}</Typography>
+        <Typography component="h1" sx={{ fontSize: { xs: 32, md: 34 }, fontWeight: 700, letterSpacing: '-.04em', lineHeight: 1.15 }}>{tr('설정')}</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{isEnglish() ? 'Make MORO feel like yours' : '우리에게 맞게 MORO를 설정해요'}</Typography>
       </Box>
 

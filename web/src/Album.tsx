@@ -116,7 +116,7 @@ export default function Album({ coupleId, userId, active, photoVersion, notify, 
   return (
     <Box className="screen album-screen">
       <Box className="screen-heading">
-        <Typography component="h1" sx={{ fontSize: 25, fontWeight: 750, letterSpacing: '-.04em', lineHeight: 1.2 }}>{tr('앨범')}</Typography>
+        <Typography component="h1" sx={{ fontSize: { xs: 32, md: 34 }, fontWeight: 700, letterSpacing: '-.04em', lineHeight: 1.15 }}>{tr('앨범')}</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{isEnglish() ? 'The moments we saved together' : '함께 보낸 순간을 모아두었어요'}</Typography>
       </Box>
       {failed && <Card sx={{ p: 2 }}>

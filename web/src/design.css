@@ -1,24 +1,24 @@
 html { touch-action: pan-x pan-y; }
-:root { --moro-feature: #eee9f7; }
-[data-dark] { --moro-feature: #2b2636; }
+:root { --moro-feature: #ffffff; }
+[data-dark] { --moro-feature: #1c1c1e; }
 body { -webkit-font-smoothing: antialiased; }
 .app-shell { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
 .app-content { max-width: 640px; margin-inline: auto; }
 .app-content[hidden] { display: none; }
-.screen { padding: 28px 20px 32px; }
-.screen-heading { margin-bottom: 28px; }
-.home-screen { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
+.screen { padding: 24px 20px 32px; }
+.screen-heading { margin-bottom: 24px; }
+.home-screen { display: grid; grid-template-columns: minmax(0, 1fr); gap: 26px; }
 .home-screen > .screen-heading { margin-bottom: 0; }
 .home-screen > * { min-width: 0; }
-.couple-card { border-radius: 22px !important; }
+.couple-card { border-radius: 16px !important; }
 .milestones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; border-top: 1px solid; margin-top: 24px; padding-top: 16px; }
 .navigation-inner { max-width: 1120px; margin: auto; }
 .desktop-brand { display: none; }
 .MuiBottomNavigationAction-label { white-space: nowrap; }
 .calendar-layout { display: grid; gap: 28px; align-items: start; }
 .settings-section { margin-bottom: 28px; }
-.album-screen .MuiImageList-root { gap: 8px !important; }
-.album-screen .MuiImageListItem-root { border-radius: 12px; }
+.album-screen .MuiImageList-root { gap: 3px !important; }
+.album-screen .MuiImageListItem-root { border-radius: 3px !important; }
 @media (min-width: 1000px) {
   /* 1080px content = 624px main + 32px gutter + 424px companion. */
   .app-shell { padding-top: 76px; padding-bottom: 32px; }
@@ -52,8 +52,8 @@ body { -webkit-font-smoothing: antialiased; }
 
 /* Keep titles readable when translated labels need more space. */
 @media (max-width: 359px) {
-  .home-screen > .screen-heading { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 12px; }
-  .home-screen > .screen-heading > button { grid-column: 2; justify-self: start; }
+  .home-screen > .screen-heading { flex-wrap: wrap; gap: 8px; }
+  .home-screen > .screen-heading > div:first-child { flex-basis: 100%; }
   .calendar-screen > .screen-heading { flex-wrap: wrap; row-gap: 8px; }
   .calendar-screen > .screen-heading > div:first-child { flex-basis: 100%; }
   .day-photos-heading { flex-wrap: wrap; gap: 8px; }
