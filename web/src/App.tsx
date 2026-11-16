@@ -28,16 +28,18 @@ const Loading = () => (
 // 로그인/연결 화면 공통 틀: 가운데 카드 + 로고
 function Centered({ title, sub, children }: { title: string; sub: string; children: React.ReactNode }) {
   return (
-    <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', p: 2,
+    <Box component="main" sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', px: 2.5, py: { xs: 5, md: 8 },
       bgcolor: 'background.default' }}>
-      <Stack spacing={3.5} sx={{ width: '100%', maxWidth: 400 }}>
-        <Stack sx={{ alignItems: 'center' }} spacing={1}>
-          <Box component="img" src="/icon-192.png" alt="" sx={{ width: 64, height: 64, borderRadius: '18px', mb: 1 }} />
-          <Typography component="h1" sx={{ fontSize: 28, fontWeight: 700, letterSpacing: '-.035em' }}>{title}</Typography>
-          <Typography color="text.secondary" sx={{ textAlign: 'center' }}>{sub}</Typography>
+      <Box sx={{ width: '100%', maxWidth: 940, display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 1fr) 400px' }, gap: { xs: 4, md: 8 }, alignItems: 'center' }}>
+        <Stack sx={{ alignItems: 'flex-start', maxWidth: 400 }} spacing={1}>
+          <Box component="img" src="/icon-192.png" alt="" sx={{ width: 56, height: 56, borderRadius: '16px', mb: 2 }} />
+          <Typography component="h1" sx={{ fontSize: { xs: 30, md: 38 }, fontWeight: 700, letterSpacing: '-.04em', lineHeight: 1.18 }}>{title}</Typography>
+          <Typography color="text.secondary" sx={{ fontSize: 15, lineHeight: 1.6, pt: 0.5 }}>{sub}</Typography>
         </Stack>
-        <Card><CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}><Stack spacing={2}>{children}</Stack></CardContent></Card>
-      </Stack>
+        <Card sx={{ borderRadius: '20px', width: '100%', maxWidth: 440, justifySelf: { xs: 'start', md: 'end' } }}>
+          <CardContent sx={{ p: { xs: 2.5, sm: 3 }, '&:last-child': { pb: { xs: 2.5, sm: 3 } } }}><Stack spacing={2}>{children}</Stack></CardContent>
+        </Card>
+      </Box>
     </Box>
   )
 }
@@ -57,16 +59,16 @@ function Login() {
   return (
     <Centered title="MORO" sub={tr("둘만의 일정과 사진을 함께 모아요")}>
       <Button size="large" onClick={() => auth.oauth('kakao')}
-        sx={{ bgcolor: '#fee500', color: '#191919', '&:hover': { bgcolor: '#f5dc00' } }}>
+        sx={{ bgcolor: '#fee500', color: '#191919', minHeight: 50, '&:hover': { bgcolor: '#f5dc00' } }}>
         {tr("카카오로 시작하기")}
       </Button>
-      <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
+      <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', fontSize: 13, lineHeight: 1.55 }}>
         {tr("처음 가입한 방식으로 계속 로그인하세요. 방식이 다르면 다른 계정이 됩니다.")}
       </Typography>
       <Divider>{tr("또는 이메일")}</Divider>
       <Stack component="form" spacing={1.5} onSubmit={(e) => submit(e, 'in')}>
-        <TextField type="email" label={tr("이메일")} required size="small" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <TextField type="password" label={tr("비밀번호 (6자 이상)")} required size="small" slotProps={{ htmlInput: { minLength: 6 } }}
+        <TextField type="email" label={tr("이메일")} autoComplete="email" required size="small" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <TextField type="password" label={tr("비밀번호 (6자 이상)")} autoComplete="current-password" required size="small" slotProps={{ htmlInput: { minLength: 6 } }}
           value={password} onChange={(e) => setPassword(e.target.value)} />
         <Button type="submit" variant="contained" size="large">{tr("로그인")}</Button>
         <Button onClick={(e) => submit(e, 'up')}>{tr("이메일로 가입")}</Button>

@@ -3,7 +3,7 @@ import { monthRange } from './calendarDates'
 import { isEnglish, locale, tr } from './language'
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
-  Box, Button, ButtonBase, Card, CardActionArea, DialogActions, DialogContent, DialogTitle, Drawer,
+  Box, Button, ButtonBase, Card, CardActionArea, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Drawer,
   FormControlLabel, IconButton, Stack, Switch, TextField, ToggleButton, ToggleButtonGroup, Typography,
 } from '@mui/material'
 import {
@@ -164,7 +164,7 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
 
   return (
     <Box className="screen calendar-screen">
-      <Stack className="screen-heading" direction="row" spacing={0.5} sx={{ alignItems: 'center', mb: 2, px: 0.5 }}>
+      <Stack className="screen-heading" direction="row" spacing={0.5} sx={{ alignItems: 'center', mb: 2.5 }}>
         <Box sx={{ flex: 1 }}>
           <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{month.getFullYear()}</Typography>
           <Typography component="h1" sx={{ fontSize: { xs: 32, md: 34 }, fontWeight: 700, letterSpacing: '-.04em', lineHeight: 1.15 }}>{month.toLocaleDateString(locale(), { month: 'long' })}</Typography>
@@ -172,12 +172,12 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
         {!isThisMonth && <Button size="small" variant="outlined" onClick={goToday}>{tr("오늘")}</Button>}
         <IconButton aria-label={tr("이전 달")} onClick={() => shift(-1)}><ChevronLeftIcon size={22} /></IconButton>
         <IconButton aria-label={tr("다음 달")} onClick={() => shift(1)}><ChevronRightIcon size={22} /></IconButton>
-        <Button variant="contained" aria-label={tr("일정 추가")} onClick={() => setEditing('new')} sx={{ minWidth: 44, px: 1.5, ml: 1 }}><PlusIcon size={22} /></Button>
+        <Button variant="contained" aria-label={tr("일정 추가")} onClick={() => setEditing('new')} sx={{ minWidth: 44, width: 44, height: 44, p: 0, ml: 1, borderRadius: '50%' }}><PlusIcon size={22} /></Button>
       </Stack>
 
       {/* 좌우 스와이프로 달 이동. 세로 스크롤과 헷갈리지 않게 가로 이동이 더 클 때만 */}
       <Box className="calendar-layout">
-      <Card className="month-grid" sx={{ p: 1, overflow: 'hidden', borderRadius: '16px' }}
+      <Card className="month-grid" sx={{ p: { xs: 1.25, sm: 2 }, overflow: 'hidden', borderRadius: '18px' }}
         onTouchStart={(e) => { touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY } }}
         onTouchEnd={(e) => {
           if (!touch.current) return
@@ -186,7 +186,7 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
           touch.current = null
           if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) shift(dx < 0 ? 1 : -1)
         }}>
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', pb: 0.75, mb: 0.75, borderBottom: 1, borderColor: 'divider' }}>
           {WEEK.map((w, i) => (
             <Typography key={w} variant="caption" sx={{ textAlign: 'center', py: 1, fontWeight: 600, color: i === 0 ? 'error.main' : i === 6 ? 'info.main' : 'text.secondary' }}>{isEnglish() ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][i] : w}</Typography>
           ))}
@@ -212,7 +212,7 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
                   '&.Mui-focusVisible': { outline: '2px solid var(--mui-palette-primary-main)', outlineOffset: -2 },
                   '@media (prefers-reduced-motion: reduce)': { transition: 'none', '&:active': { transform: 'none' } } }}>
                 <Box sx={{ alignSelf: 'center', width: 26, height: 26, borderRadius: '50%', display: 'grid', placeItems: 'center',
-                  fontSize: 13, fontWeight: isToday ? 800 : 500,
+                  fontSize: 14, fontWeight: isToday ? 700 : 500,
                   bgcolor: isSel ? 'primary.main' : isToday ? 'action.selected' : 'transparent',
                   color: isSel ? 'primary.contrastText' : hol || dow === 0 ? 'error.main' : dow === 6 ? 'info.main' : 'text.primary' }}>
                   {d.getDate()}
@@ -228,7 +228,7 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
                   const more = k !== last && dow !== 6
                   return (
                     <Box key={ev.id} sx={{ height: { xs: 4, sm: 17 }, lineHeight: '17px', fontSize: 11, fontWeight: 600, px: 0.5, overflow: 'hidden', whiteSpace: 'nowrap',
-                      textAlign: 'left', bgcolor: tint(color(ev)), color: ink(color(ev)),
+                      textAlign: 'left', bgcolor: { xs: `color-mix(in srgb, ${color(ev)} 60%, transparent)`, sm: tint(color(ev)) }, color: ink(color(ev)),
                       borderLeft: cont ? 0 : `3px solid ${color(ev)}`,
                       ml: cont ? 0 : '2px', mr: more ? 0 : '2px',
                       borderRadius: `${cont ? 0 : 4}px ${more ? 0 : 4}px ${more ? 0 : 4}px ${cont ? 0 : 4}px` }}>
@@ -244,13 +244,17 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
       </Card>
 
       <Box className="day-panel">
-      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
-        <Typography variant="h6" component="h2" sx={{ flex: 1, minWidth: 0 }} noWrap>
-          {new Date(`${selected}T00:00`).toLocaleDateString(locale(), { month: 'long', day: 'numeric' })} <Typography component="span" color="text.secondary" sx={{ fontWeight: 500 }}>{selectedDow}</Typography>
-          {holidayName(selected) && <Typography component="span" color="error.main" sx={{ fontWeight: 700, ml: 0.75, fontSize: 14 }}>{tr(holidayName(selected)!)}</Typography>}
-        </Typography>
-        <Button size="small" variant="outlined" onClick={() => poke(notify)} startIcon={<HeartIcon size={17} />}
-          sx={{ flexShrink: 0, px: 1.5 }}>
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 2 }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="h6" component="h2" sx={{ fontSize: 21, lineHeight: 1.25 }} noWrap>
+            {new Date(`${selected}T00:00`).toLocaleDateString(locale(), { month: 'long', day: 'numeric' })} <Typography component="span" color="text.secondary" sx={{ fontWeight: 500 }}>{selectedDow}</Typography>
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            {holidayName(selected) ? `${tr(holidayName(selected)!)} · ` : ''}{isEnglish() ? `${dayList.length} ${dayList.length === 1 ? 'event' : 'events'}` : `일정 ${dayList.length}개`}
+          </Typography>
+        </Box>
+        <Button size="small" onClick={() => poke(notify)} startIcon={<HeartIcon size={17} />}
+          sx={{ flexShrink: 0, px: 1 }}>
           {tr("콕")}
         </Button>
       </Stack>
@@ -268,11 +272,10 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
       {view === 'grid' ? (
         <Timetable date={selected} list={dayList} color={color} onPick={setEditing} onAdd={() => setEditing('new')} />
       ) : (
-      <Stack spacing={1}>
-        {dayList.map(({ ev, first, last }) => (
-          <Card key={ev.id}>
-            <CardActionArea onClick={() => setEditing(ev)}>
-              <Stack direction="row" spacing={1.5} sx={{ p: 1.5, alignItems: 'center' }}>
+      dayList.length ? <Card>
+        {dayList.map(({ ev, first, last }, index) => (
+            <CardActionArea key={ev.id} onClick={() => setEditing(ev)} sx={{ borderRadius: 0, borderTop: index ? 1 : 0, borderColor: 'divider' }}>
+              <Stack direction="row" spacing={1.5} sx={{ px: 2, py: 1.75, alignItems: 'center' }}>
                 <Box sx={{ width: 4, alignSelf: 'stretch', borderRadius: 2, bgcolor: color(ev) }} />
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography sx={{ fontWeight: 700 }} noWrap>{ev.title}</Typography>
@@ -285,14 +288,8 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
                 <Box sx={{ color: 'text.disabled', lineHeight: 0 }}><ChevronRightIcon size={20} /></Box>
               </Stack>
             </CardActionArea>
-          </Card>
         ))}
-        {!dayList.length && (
-          <ButtonBase onClick={() => setEditing('new')} sx={{ py: 3, borderRadius: 4, border: '1.5px dashed', borderColor: 'divider', color: 'text.secondary', gap: 1 }}>
-            <PlusIcon size={18} /> {tr("이날 일정 추가하기")}
-          </ButtonBase>
-        )}
-      </Stack>
+      </Card> : <EmptyDay onAdd={() => setEditing('new')} />
       )}
 
       <Stack className="day-photos-heading" direction="row" sx={{ alignItems: 'center', mt: 3.5, mb: 1 }}>
@@ -313,7 +310,9 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
         <Button size="small" disabled={uploading} onClick={() => setFailedUpload(null)}>{isEnglish() ? 'Dismiss' : '닫기'}</Button>
       </Card>}
       <PhotoGrid photos={dayPhotos} userId={userId} onChanged={loadPhotos} onError={notify} />
-      {!dayPhotos.length && <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>{isEnglish() ? 'Keep a little memory of this day.' : '사진으로 이날의 기억을 남겨보세요.'}</Typography>}
+      {!dayPhotos.length && <Box sx={{ px: 2, py: 2.5, borderRadius: '14px', bgcolor: 'background.paper' }}>
+        <Typography variant="body2" color="text.secondary">{isEnglish() ? 'No photos on this day yet.' : '이날의 사진이 아직 없어요.'}</Typography>
+      </Box>}
 
       </Box>
       </Box>
@@ -329,6 +328,15 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
 
 export default memo(Calendar)
 
+function EmptyDay({ onAdd }: { onAdd: () => void }) {
+  return <ButtonBase onClick={onAdd} sx={{ width: '100%', px: 2, py: 2.5, borderRadius: '14px', bgcolor: 'background.paper', textAlign: 'left', justifyContent: 'space-between', gap: 2,
+    '&.Mui-focusVisible': { outline: '2px solid var(--mui-palette-primary-main)', outlineOffset: -2 } }}>
+    <Box><Typography sx={{ fontWeight: 600 }}>{isEnglish() ? 'No events on this day' : '예정된 일정이 없어요'}</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>{isEnglish() ? 'Add an event' : '일정 추가하기'}</Typography></Box>
+    <Box sx={{ color: 'primary.main', flexShrink: 0 }}><PlusIcon size={20} /></Box>
+  </ButtonBase>
+}
+
 function EventDialog({ event, date, coupleId, userId, onClose, onSaved, notify }: {
   event: Event | null; date: string; coupleId: string; userId: string; onClose: () => void; onSaved: () => void; notify: (m: string) => void
 }) {
@@ -336,6 +344,7 @@ function EventDialog({ event, date, coupleId, userId, onClose, onSaved, notify }
   const [yearly, setYearly] = useState(event?.repeat_yearly ?? false)
   const [dday, setDday] = useState(event?.dday ?? false)
   const [saving, setSaving] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const savingRef = useRef(false)
   const day = event ? ymd(new Date(event.start_at)) : date
 
@@ -374,26 +383,36 @@ function EventDialog({ event, date, coupleId, userId, onClose, onSaved, notify }
   }
 
   const remove = async () => {
-    if (!event || !confirm(isEnglish() ? `Delete “${event.title}”?${event.repeat_yearly ? ' All yearly occurrences will be deleted.' : ''}` : `'${event.title}' 일정을 삭제할까요?${event.repeat_yearly ? ' 모든 해의 반복이 함께 지워져요.' : ''}`)) return
-    const { error } = await supabase.from('events').delete().eq('id', event.id)
-    if (error) return notify(koError(error))
-    onSaved()
+    if (!event || savingRef.current) return
+    savingRef.current = true
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('events').delete().eq('id', event.id)
+      if (error) return notify(koError(error))
+      setConfirmingDelete(false)
+      onSaved()
+    } catch (error) {
+      notify(error instanceof Error ? koError(error) : String(error))
+    } finally { savingRef.current = false; setSaving(false) }
   }
 
   return (
-    // 휴대폰에서 손이 닿기 쉬운 아래쪽 시트
+    <>
+    {/* 휴대폰에서 손이 닿기 쉬운 아래쪽 시트 */}
     <Drawer open anchor="bottom" onClose={saving ? undefined : onClose} slotProps={{ paper: { component: 'form', onSubmit: save,
-      sx: { maxWidth: 560, mx: 'auto', maxHeight: '92dvh', borderRadius: '24px 24px 0 0', pb: 'env(safe-area-inset-bottom)' } } as object }}>
-      <Box sx={{ width: 40, height: 4, borderRadius: 2, bgcolor: 'divider', mx: 'auto', mt: 1.5 }} />
-      <DialogTitle>{event ? tr('일정 수정') : tr("새 일정")}</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ pt: 1 }}>
+      sx: { maxWidth: 560, mx: 'auto', maxHeight: '92dvh', borderRadius: '22px 22px 0 0', pb: 'env(safe-area-inset-bottom)' } } as object }}>
+      <Box sx={{ width: 36, height: 4, borderRadius: 2, bgcolor: 'divider', mx: 'auto', mt: 1.25 }} />
+      <DialogTitle sx={{ px: 3, pt: 2, pb: 0.5, fontSize: 21, fontWeight: 700, letterSpacing: '-.03em' }}>{event ? tr('일정 수정') : tr("새 일정")}</DialogTitle>
+      <DialogContent sx={{ px: 3 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{new Date(`${day}T00:00`).toLocaleDateString(locale(), { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}</Typography>
+        <Stack spacing={2} sx={{ pt: 0.5, pb: 1 }}>
           <TextField name="title" label={tr("제목")} required autoFocus defaultValue={event?.title} slotProps={{ htmlInput: { maxLength: 200 } }} />
           <Stack direction="row" spacing={1}>
             <TextField name="day" type="date" label={tr("시작 날짜")} required fullWidth defaultValue={day} slotProps={{ inputLabel: { shrink: true } }} />
             <TextField name="end" type="date" label={tr("종료 날짜 (선택)")} fullWidth defaultValue={event?.end_date ?? ''} slotProps={{ inputLabel: { shrink: true } }} />
           </Stack>
-          <FormControlLabel control={<Switch checked={allDay} onChange={(e) => setAllDay(e.target.checked)} />} label={tr("하루 종일")} />
+          <FormControlLabel control={<Switch checked={allDay} onChange={(e) => setAllDay(e.target.checked)} />} label={tr("하루 종일")} labelPlacement="start"
+            sx={{ m: 0, px: 1.5, py: 0.5, borderRadius: 2, bgcolor: 'background.default', justifyContent: 'space-between', '& .MuiFormControlLabel-label': { fontWeight: 600, fontSize: 15 } }} />
           {!allDay && (
             <Stack direction="row" spacing={1}>
               <TextField name="time" type="time" label={tr("시작 시간")} required fullWidth defaultValue={event ? hm(new Date(event.start_at)) : '12:00'}
@@ -404,22 +423,41 @@ function EventDialog({ event, date, coupleId, userId, onClose, onSaved, notify }
                 slotProps={{ inputLabel: { shrink: true } }} />
             </Stack>
           )}
-          <FormControlLabel control={<Switch checked={yearly} onChange={(e) => setYearly(e.target.checked)} />} label={tr("매년 반복")} />
+          <FormControlLabel control={<Switch checked={yearly} onChange={(e) => setYearly(e.target.checked)} />} label={tr("매년 반복")} labelPlacement="start"
+            sx={{ m: 0, px: 1.5, py: 0.5, borderRadius: 2, bgcolor: 'background.default', justifyContent: 'space-between', '& .MuiFormControlLabel-label': { fontWeight: 600, fontSize: 15 } }} />
           {yearly && (
             <TextField name="until" type="number" label={tr("몇 년도까지 (비우면 계속)")} defaultValue={event?.repeat_until_year ?? ''}
               slotProps={{ htmlInput: { min: +day.slice(0, 4), max: 2200 } }} />
           )}
-          <FormControlLabel control={<Switch checked={dday} onChange={(e) => setDday(e.target.checked)} />} label={tr("홈에 디데이로 표시")} />
+          <FormControlLabel control={<Switch checked={dday} onChange={(e) => setDday(e.target.checked)} />} label={tr("홈에 디데이로 표시")} labelPlacement="start"
+            sx={{ m: 0, px: 1.5, py: 0.5, borderRadius: 2, bgcolor: 'background.default', justifyContent: 'space-between', '& .MuiFormControlLabel-label': { fontWeight: 600, fontSize: 15 } }} />
           <TextField name="note" label={tr("메모 (선택)")} multiline minRows={2} defaultValue={event?.note ?? ''} />
         </Stack>
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        {event && <Button color="error" onClick={remove} disabled={saving}>{tr("삭제")}</Button>}
+      <DialogActions sx={{ px: 3, py: 1.5, borderTop: 1, borderColor: 'divider' }}>
+        {event && <Button color="error" onClick={() => setConfirmingDelete(true)} disabled={saving}>{tr("삭제")}</Button>}
         <Box sx={{ flex: 1 }} />
         <Button onClick={onClose} disabled={saving}>{tr("취소")}</Button>
         <Button type="submit" variant="contained" disabled={saving}>{saving ? (isEnglish() ? 'Saving…' : '저장 중…') : event ? tr('저장') : tr("추가")}</Button>
       </DialogActions>
     </Drawer>
+    <Dialog open={confirmingDelete} onClose={saving ? undefined : () => setConfirmingDelete(false)}
+      fullWidth maxWidth="xs" aria-labelledby="delete-event-title" aria-describedby="delete-event-description">
+      <DialogTitle id="delete-event-title">{isEnglish() ? 'Delete event?' : '일정을 삭제할까요?'}</DialogTitle>
+      <DialogContent>
+        <DialogContentText id="delete-event-description">
+          {isEnglish() ? `“${event?.title ?? ''}” will be deleted.` : `'${event?.title ?? ''}' 일정이 삭제돼요.`}
+          {event?.repeat_yearly && (isEnglish() ? ' All yearly occurrences will be deleted.' : ' 매년 반복되는 일정도 모두 삭제돼요.')}
+        </DialogContentText>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={() => setConfirmingDelete(false)} disabled={saving}>{tr('취소')}</Button>
+        <Button color="error" variant="contained" onClick={remove} disabled={saving}>
+          {saving ? (isEnglish() ? 'Deleting…' : '삭제 중…') : tr('삭제')}
+        </Button>
+      </DialogActions>
+    </Dialog>
+    </>
   )
 }
 
@@ -437,9 +475,7 @@ function Timetable({ date, list, color, onPick, onAdd }: {
 
   if (!list.length) {
     return (
-      <ButtonBase onClick={onAdd} sx={{ width: '100%', py: 3, borderRadius: 4, border: '1.5px dashed', borderColor: 'divider', color: 'text.secondary', gap: 1 }}>
-        <PlusIcon size={18} /> {tr("이날 일정 추가하기")}
-      </ButtonBase>
+      <EmptyDay onAdd={onAdd} />
     )
   }
 

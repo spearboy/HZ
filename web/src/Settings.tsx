@@ -119,32 +119,32 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
     <Box className="screen settings-screen">
       <Box className="screen-heading">
         <Typography component="h1" sx={{ fontSize: { xs: 32, md: 34 }, fontWeight: 700, letterSpacing: '-.04em', lineHeight: 1.15 }}>{tr('설정')}</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{isEnglish() ? 'Make MORO feel like yours' : '우리에게 맞게 MORO를 설정해요'}</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>{isEnglish() ? 'Profiles, preferences and account' : '프로필과 앱 환경을 관리해요'}</Typography>
       </Box>
 
       <SettingsSection title={isEnglish() ? 'Our profiles' : '우리의 프로필'} description={isEnglish() ? 'The names, photos and colors that make this space ours.' : '우리의 이름과 사진, 일정에 쓰일 색상을 정해요.'}>
         <Card>
           <List disablePadding>
             {[me, partner].map((p, i) => p && (
-              <ListItem key={p.id} sx={{ px: 2, py: 1.5, gap: 1, borderBottom: i === 0 && partner ? 1 : 0, borderColor: 'divider' }}>
-                <ListItemAvatar sx={{ minWidth: 48 }}>
-                  <FitAvatar url={p.avatarUrl} fit={avatarFit(p)} size={40} bg={colorOf(p.id)}
+              <ListItem key={p.id} sx={{ px: 2.25, py: 1.5, gap: 1.25, minHeight: 76, borderBottom: i === 0 && partner ? 1 : 0, borderColor: 'divider' }}>
+                <ListItemAvatar sx={{ minWidth: 46 }}>
+                  <FitAvatar url={p.avatarUrl} fit={avatarFit(p)} size={44} bg={colorOf(p.id)}
                     fg={palette.getContrastText(colorOf(p.id))} label={p.display_name ?? '?'} />
                 </ListItemAvatar>
                 <ListItemText sx={{ minWidth: 0, my: 0 }} primary={p.display_name ?? tr('이름 없음')}
-                  slotProps={{ primary: { noWrap: true, sx: { fontWeight: 700 } } }} secondary={i ? tr('상대') : tr('나')} />
+                  slotProps={{ primary: { noWrap: true, sx: { fontWeight: 650, fontSize: 15 } }, secondary: { sx: { fontSize: 13, mt: 0.25 } } }} secondary={i ? tr('상대') : tr('나')} />
                 {i === 0 && <Button size="small" startIcon={<CameraIcon size={16} />} onClick={() => setPicking('avatar')}
                   sx={{ flexShrink: 0, px: 1 }}>{p.avatar_path ? tr('사진 바꾸기') : tr('사진 넣기')}</Button>}
               </ListItem>
             ))}
           </List>
-          <Box sx={{ px: 2, pt: 1.5, pb: 2, borderTop: 1, borderColor: 'divider' }}>
+          <Box sx={{ px: 2.25, pt: 2, pb: 2, borderTop: 1, borderColor: 'divider' }}>
             <Typography component="label" htmlFor="settings-name" variant="body2" sx={{ display: 'block', fontWeight: 700, mb: 1 }}>{tr('내 이름')}</Typography>
             <NameField value={me?.display_name ?? ''} onSave={saveName} />
           </Box>
-          <Box sx={{ px: 2, pb: 2.5 }}>
+          <Box sx={{ px: 2.25, pb: 2.5 }}>
             <Typography variant="body2" sx={{ fontWeight: 700, mb: 1.5 }}>{tr('내 일정 색상')}</Typography>
-            <Box role="radiogroup" aria-label={tr('내 일정 색상')} sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            <Box role="radiogroup" aria-label={tr('내 일정 색상')} sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
               {PALETTE.map((c, i) => {
                 const on = c === myColor
                 return <ButtonBase key={c} role="radio" disabled={savingColor} aria-checked={on} aria-label={isEnglish() ? COLOR_NAMES[i][1] : COLOR_NAMES[i][0]} onClick={() => pickColor(c)}
@@ -163,20 +163,22 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
 
       <SettingsSection title={isEnglish() ? 'App preferences' : '앱 설정'} description={isEnglish() ? 'Choose your language, reminders and home card.' : '편한 언어와 알림, 홈 카드의 분위기를 설정해요.'}>
         <Card>
-          <Box sx={{ px: 2, py: 2, borderBottom: 1, borderColor: 'divider' }}>
-            <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>{isEnglish() ? 'Language' : '언어'}</Typography>
-            <Box role="radiogroup" aria-label="언어 / Language" sx={{ display: 'flex', gap: 1 }}>
-              {(['ko', 'en'] as const).map(id => <Button key={id} role="radio" aria-checked={language === id}
-                variant={language === id ? 'contained' : 'outlined'} onClick={() => setLanguage(id)}>{id === 'ko' ? '한국어' : 'English'}</Button>)}
+          <Box sx={{ px: 2.25, py: 2, borderBottom: 1, borderColor: 'divider' }}>
+            <Typography variant="body2" sx={{ fontWeight: 650, mb: 1.25 }}>{isEnglish() ? 'Language' : '언어'}</Typography>
+            <Box role="radiogroup" aria-label="언어 / Language" sx={{ display: 'flex', p: 0.5, gap: 0.5, bgcolor: 'action.hover', borderRadius: 2.5, maxWidth: 320 }}>
+              {(['ko', 'en'] as const).map(id => <ButtonBase key={id} role="radio" aria-checked={language === id}
+                onClick={() => setLanguage(id)} sx={{ flex: 1, minHeight: 40, borderRadius: 2, fontSize: 14, fontWeight: language === id ? 650 : 500,
+                  bgcolor: language === id ? 'background.paper' : 'transparent', color: language === id ? 'text.primary' : 'text.secondary',
+                  '&.Mui-focusVisible': { outline: '2px solid var(--mui-palette-primary-main)', outlineOffset: -2 } }}>{id === 'ko' ? '한국어' : 'English'}</ButtonBase>)}
             </Box>
           </Box>
           <List disablePadding sx={{ '& .MuiListItemIcon-root': { minWidth: 38, color: 'text.secondary' },
-            '& .MuiListItemText-primary': { fontSize: 15, fontWeight: 650 }, '& .MuiListItemText-secondary': { mt: 0.25, fontSize: 12, lineHeight: 1.5 } }}>
+            '& .MuiListItemText-primary': { fontSize: 15, fontWeight: 600 }, '& .MuiListItemText-secondary': { mt: 0.25, fontSize: 13, lineHeight: 1.5 } }}>
             <ListItem sx={{ px: 2, py: 1.5, alignItems: 'flex-start', gap: 1 }}>
               <ListItemIcon sx={{ mt: 0.5 }}><BellIcon size={20} /></ListItemIcon>
               <ListItemText sx={{ minWidth: 0, my: 0 }} primary={tr('푸시 알림')}
-                secondary={pushSupported() ? tr('찌르기, 일정 당일 아침 9시와 시작 1시간 전') : tr("아이폰은 Safari 공유 → '홈 화면에 추가' 후 그 앱에서 켤 수 있어요")} />
-              {pushSupported() && <Switch checked={push} disabled={push} onChange={turnOnPush} slotProps={{ input: { 'aria-label': tr('푸시 알림') } }} />}
+                secondary={pushSupported() ? push ? (isEnglish() ? 'Set up on this device' : '이 기기에 알림이 설정되어 있어요') : tr('찌르기, 일정 당일 아침 9시와 시작 1시간 전') : tr("아이폰은 Safari 공유 → '홈 화면에 추가' 후 그 앱에서 켤 수 있어요")} />
+              {pushSupported() && (push ? <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0, pt: 0.5 }}>{isEnglish() ? 'On' : '켜짐'}</Typography> : <Button size="small" aria-label={isEnglish() ? 'Enable push notifications' : '푸시 알림 켜기'} onClick={turnOnPush} sx={{ flexShrink: 0, px: 1 }}>{isEnglish() ? 'Enable' : '켜기'}</Button>)}
             </ListItem>
             <ListItem sx={{ px: 2, py: 1.5, alignItems: 'flex-start', gap: 1, borderTop: 1, borderColor: 'divider' }}>
               <ListItemIcon sx={{ mt: 0.5 }}><DropletIcon size={20} /></ListItemIcon>
@@ -195,7 +197,7 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
       <SettingsSection title={isEnglish() ? 'Calendar & account' : '캘린더 및 계정'} description={isEnglish() ? 'Bring existing plans into MORO and manage your connection.' : '기존 일정을 가져오고 계정 연결을 관리해요.'}>
         <Card>
           <List disablePadding sx={{ '& .MuiListItemIcon-root': { minWidth: 38, color: 'text.secondary' },
-            '& .MuiListItemText-primary': { fontSize: 15, fontWeight: 650 }, '& .MuiListItemText-secondary': { mt: 0.25, fontSize: 12, lineHeight: 1.5 } }}>
+            '& .MuiListItemText-primary': { fontSize: 15, fontWeight: 600 }, '& .MuiListItemText-secondary': { mt: 0.25, fontSize: 13, lineHeight: 1.5 } }}>
             <ListItemButton onClick={() => setImporting(v => !v)} aria-expanded={importing} sx={{ px: 2, py: 1.5 }}>
               <ListItemIcon><CalendarPlusIcon size={20} /></ListItemIcon>
               <ListItemText primary={tr('캘린더 가져오기')} secondary={tr('폰 캘린더에서 내보낸 .ics 파일의 일정을 복사해요')} />
@@ -244,8 +246,8 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
 
 function SettingsSection({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return <Box component="section" className="settings-section">
-    <Box component="header" sx={{ mb: 2 }}><Typography component="h2" sx={{ fontSize: 17, fontWeight: 700, mb: 0.75 }}>{title}</Typography>
-      <Typography variant="body2" color="text.secondary">{description}</Typography></Box>
+    <Box component="header" sx={{ mb: 1.5, px: { xs: 0.5, md: 0 } }}><Typography component="h2" sx={{ fontSize: 17, fontWeight: 700, letterSpacing: '-.02em', mb: 0.5 }}>{title}</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.5 }}>{description}</Typography></Box>
     {children}
   </Box>
 }
@@ -259,6 +261,6 @@ function NameField({ value, onSave }: { value: string; onSave: (v: string) => vo
     <TextField id="settings-name" size="small" placeholder={tr("예: 병현")} value={v} onChange={(e) => setV(e.target.value)}
       onBlur={() => onSave(v.trim())} onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && (e.target as HTMLInputElement).blur()}
       helperText={tr("홈 메인 카드와 설정에 보이는 이름이에요 (20자까지)")}
-      slotProps={{ htmlInput: { maxLength: 20 } }} />
+      slotProps={{ htmlInput: { maxLength: 20 } }} sx={{ '& .MuiInputBase-input': { fontSize: 16 } }} />
   )
 }

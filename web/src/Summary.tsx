@@ -130,16 +130,16 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
 
   return (
     <Box className="screen home-screen">
-      <Stack className="screen-heading" direction="row" sx={{ alignItems: 'center', gap: 1 }}>
+      <Stack className="screen-heading" direction="row" sx={{ alignItems: 'flex-end', gap: 1 }}>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Box className="home-brand"><img src="/icon-192.png" alt="" />MORO</Box>
-          <Typography component="h1" sx={{ fontSize: { xs: 32, md: 34 }, fontWeight: 700, letterSpacing: '-.04em', lineHeight: 1.15 }}>{isEnglish() ? 'Our everyday' : '우리의 하루'}</Typography>
+          <Typography component="h1" sx={{ fontSize: { xs: 30, md: 34 }, fontWeight: 700, letterSpacing: '-.04em', lineHeight: 1.15 }}>{isEnglish() ? 'Our everyday' : '우리의 하루'}</Typography>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 0.5 }}>
             <Typography variant="body2" color="text.secondary">{now.toLocaleDateString(locale(), { month: 'long', day: 'numeric', weekday: 'short' })}</Typography>
             <WeatherCard w={weather} compact />
           </Stack>
         </Box>
-        <Button startIcon={<HeartIcon size={18} />} onClick={() => poke(notify)} sx={{ flexShrink: 0, px: 1, alignSelf: 'flex-end' }}>{tr('콕 찌르기')}</Button>
+        <Button startIcon={<HeartIcon size={18} />} onClick={() => poke(notify)} sx={{ flexShrink: 0, px: 1 }}>{tr('콕 찌르기')}</Button>
       </Stack>
 
       {/* 커플 디데이 */}
@@ -154,8 +154,8 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
         )}
         {active && pageVisible && fx && weather && <WeatherFx code={weather.code} />}
         {active && pageVisible && glass !== 'none' && <GlassFx kind={glass} seed={+today.replaceAll('-', '')} />}
-        <Box sx={{ position: 'relative', p: { xs: 3, md: 3.5 }, pointerEvents: 'none', userSelect: 'none' }}>
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 3.5 }}>
+        <Box sx={{ position: 'relative', p: { xs: 2.5, md: 3 }, pointerEvents: 'none', userSelect: 'none' }}>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 2 }}>
           {[me, partner].map((p, i) => p && (
             <Stack key={p.id} direction="row" spacing={0.75} sx={{ alignItems: 'center', minWidth: 0 }}>
               {i === 1 && <Box sx={{ mr: 0.25, lineHeight: 0 }}><HeartIcon size={16} /></Box>}
@@ -169,9 +169,9 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
         </Stack>
         {together ? (
           <>
-            <Typography variant="body2" sx={{ opacity: 0.85 }}>{tr("함께한 지")}</Typography>
-            <Typography sx={{ fontSize: { xs: 46, md: 52 }, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'inherit', letterSpacing: '-0.04em', lineHeight: 1.15 }}>{together.n.toLocaleString(locale())}<Typography component="span" sx={{ fontSize: 18, fontWeight: 600, ml: 0.75 }}>{isEnglish() ? 'days' : '일'}</Typography></Typography>
-            <Typography variant="body2" sx={{ opacity: 0.75, mt: 0.5 }}>{new Date(`${startedOn}T00:00`).toLocaleDateString(locale(), { year: 'numeric', month: 'long', day: 'numeric' })}{isEnglish() ? ' · our first day' : '부터'}</Typography>
+            <Typography variant="body2" sx={{ opacity: 0.78 }}>{tr("함께한 지")}</Typography>
+            <Typography sx={{ fontSize: { xs: 42, md: 48 }, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'inherit', letterSpacing: '-0.04em', lineHeight: 1.15 }}>{together.n.toLocaleString(locale())}<Typography component="span" sx={{ fontSize: 18, fontWeight: 600, ml: 0.75 }}>{isEnglish() ? 'days' : '일'}</Typography></Typography>
+            <Typography variant="body2" sx={{ opacity: 0.72, mt: 0.5 }}>{new Date(`${startedOn}T00:00`).toLocaleDateString(locale(), { year: 'numeric', month: 'long', day: 'numeric' })}{isEnglish() ? ' · our first day' : '부터'}</Typography>
             <Box className="milestones" sx={{ borderColor: cover.url ? '#ffffff40' : 'divider' }}>
               <Box><Typography variant="caption" sx={{ opacity: 0.8 }}>{together.hundred.n}{isEnglish() ? ' days together' : '일 되는 날'}</Typography><Typography sx={{ fontSize: 20, fontWeight: 500 }}>{dLabel(together.hundred.left)}</Typography></Box>
               <Box><Typography variant="caption" sx={{ opacity: 0.8 }}>{together.anniversary.years}{isEnglish() ? '-year anniversary' : '주년 기념일'}</Typography><Typography sx={{ fontSize: 20, fontWeight: 500 }}>{dLabel(together.anniversary.left)}</Typography></Box>
@@ -203,9 +203,9 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
               sx={{ width: '100%', display: 'flex', textAlign: 'left', alignItems: 'center', gap: 1.5, px: 2, py: 1.5,
                 borderTop: i ? 1 : 0, borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' },
                 '&.Mui-focusVisible': { outline: '2px solid var(--mui-palette-primary-main)', outlineOffset: -3 } }}>
-              <Box sx={{ width: 4, alignSelf: 'stretch', minHeight: 32, borderRadius: 1, bgcolor: colorOf(ev.created_by) }} />
-              <Box sx={{ minWidth: 0, flex: 1 }}><Typography noWrap sx={{ fontWeight: 700 }}>{ev.title}</Typography>
-                <Typography variant="body2" color="text.secondary">{ev.all_day ? tr('하루 종일') : hm(new Date(ev.start_at))}</Typography></Box>
+              <Typography variant="body2" color="text.secondary" sx={{ width: 56, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{ev.all_day ? tr('종일') : hm(new Date(ev.start_at))}</Typography>
+              <Box sx={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, bgcolor: colorOf(ev.created_by) }} />
+              <Box sx={{ minWidth: 0, flex: 1 }}><Typography noWrap sx={{ fontWeight: 600 }}>{ev.title}</Typography></Box>
               <Box sx={{ color: 'text.disabled', lineHeight: 0 }}><ChevronRightIcon size={18} /></Box>
             </ButtonBase>)}
           </Card>
@@ -218,23 +218,6 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
             <Box sx={{ color: 'text.disabled', lineHeight: 0 }}><ChevronRightIcon size={18} /></Box>
           </ButtonBase>
         )}
-      </Box>
-
-      <Box component="section" className="upcoming-section">
-        <Typography component="h2" sx={{ fontSize: 17, fontWeight: 750, mb: 1.25 }}>{isEnglish() ? 'Coming up' : '다가오는 날'}</Typography>
-        {!eventsReady && !eventsError ? <Skeleton variant="rounded" height={72} /> : !eventsReady ? null : upcoming.length ? (
-          <Card>{upcoming.map(({ ev, on }, i) => {
-            const left = dayDiff(today, on)
-            return <ButtonBase key={ev.id} onClick={() => openCalendar(on)} sx={{ width: '100%', display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 1.5,
-              textAlign: 'left', borderTop: i ? 1 : 0, borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' },
-              '&.Mui-focusVisible': { outline: '2px solid var(--mui-palette-primary-main)', outlineOffset: -3 } }}>
-              <Typography sx={{ minWidth: 56, color: 'primary.main', fontSize: 15, fontWeight: 750, fontVariantNumeric: 'tabular-nums' }}>{dLabel(left)}</Typography>
-              <Box sx={{ minWidth: 0, flex: 1 }}><Typography noWrap sx={{ fontWeight: 700 }}>{ev.title}</Typography>
-                <Typography variant="body2" color="text.secondary">{md(on)} {dow(on)}</Typography></Box>
-              <Box sx={{ color: 'text.disabled', lineHeight: 0 }}><ChevronRightIcon size={18} /></Box>
-            </ButtonBase>
-          })}</Card>
-        ) : <Typography variant="body2" color="text.secondary" sx={{ px: 0.25 }}>{tr("일정을 만들 때 '홈에 디데이로 표시'를 켜면 여기에 나와요.")}</Typography>}
       </Box>
 
       <Box component="section" className="week-section">
@@ -272,6 +255,23 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
             </ButtonBase>)}
           </Box>}
         </Card>
+      </Box>
+
+      <Box component="section" className="upcoming-section">
+        <Typography component="h2" sx={{ fontSize: 17, fontWeight: 750, mb: 1.25 }}>{isEnglish() ? 'Coming up' : '다가오는 날'}</Typography>
+        {!eventsReady && !eventsError ? <Skeleton variant="rounded" height={72} /> : !eventsReady ? null : upcoming.length ? (
+          <Card>{upcoming.map(({ ev, on }, i) => {
+            const left = dayDiff(today, on)
+            return <ButtonBase key={ev.id} onClick={() => openCalendar(on)} sx={{ width: '100%', display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 1.5,
+              textAlign: 'left', borderTop: i ? 1 : 0, borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' },
+              '&.Mui-focusVisible': { outline: '2px solid var(--mui-palette-primary-main)', outlineOffset: -3 } }}>
+              <Typography sx={{ minWidth: 56, color: 'primary.main', fontSize: 15, fontWeight: 750, fontVariantNumeric: 'tabular-nums' }}>{dLabel(left)}</Typography>
+              <Box sx={{ minWidth: 0, flex: 1 }}><Typography noWrap sx={{ fontWeight: 700 }}>{ev.title}</Typography>
+                <Typography variant="body2" color="text.secondary">{md(on)} {dow(on)}</Typography></Box>
+              <Box sx={{ color: 'text.disabled', lineHeight: 0 }}><ChevronRightIcon size={18} /></Box>
+            </ButtonBase>
+          })}</Card>
+        ) : <Typography variant="body2" color="text.secondary" sx={{ px: 0.25 }}>{tr("일정을 만들 때 '홈에 디데이로 표시'를 켜면 여기에 나와요.")}</Typography>}
       </Box>
 
       {editing && <StartDialog value={startedOn ?? ''} onClose={() => setEditing(false)} onSave={saveStart} onEditCover={editCover} />}

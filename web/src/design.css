@@ -7,11 +7,11 @@ body { -webkit-font-smoothing: antialiased; }
 .app-content[hidden] { display: none; }
 .screen { padding: 28px 20px 36px; }
 .screen-heading { margin-bottom: 24px; }
-.home-screen { display: grid; grid-template-columns: minmax(0, 1fr); gap: 26px; }
+.home-screen { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
 .home-screen > .screen-heading { margin-bottom: 0; }
 .home-screen > * { min-width: 0; }
 .couple-card { border-radius: 20px !important; }
-.milestones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; border-top: 1px solid; margin-top: 24px; padding-top: 16px; }
+.milestones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; border-top: 1px solid; margin-top: 18px; padding-top: 14px; }
 .home-brand { display: flex; align-items: center; gap: 8px; color: var(--mui-palette-text-secondary); font-size: 12px; font-weight: 650; letter-spacing: .03em; margin-bottom: 14px; }
 .home-brand img { width: 20px; height: 20px; border-radius: 6px; }
 .home-screen section > .MuiStack-root:first-child h2, .upcoming-section > h2 { letter-spacing: -.025em; }

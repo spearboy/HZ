@@ -26,7 +26,7 @@ export function FileUpIcon(props: Props) { return <SvgIcon {...props}><path d="M
 export function DropletIcon(props: Props) { return <SvgIcon {...props}><path d="M12 2S5 10 5 15a7 7 0 0 0 14 0c0-5-7-13-7-13Z"/></SvgIcon> }
 export function SunIcon(props: Props) { return <SvgIcon {...props}><><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1 1m12 12 1 1M5 19l1-1M18 6l1-1"/></></SvgIcon> }
 const cloud = <path d="M6 19a5 5 0 1 1 1-10 6 6 0 0 1 11-1 5.5 5.5 0 0 1 0 11Z"/>
-export function CloudIcon(props: Props) { return <SvgIcon {...props}>cloud</SvgIcon> }
+export function CloudIcon(props: Props) { return <SvgIcon {...props}>{cloud}</SvgIcon> }
 export function CloudSunIcon(props: Props) { return <SvgIcon {...props}><><path d="M4 2v2M1 7h2m3-2a3 3 0 0 1 5-2"/>{cloud}</></SvgIcon> }
 export function CloudLightningIcon(props: Props) { return <SvgIcon {...props}><>{cloud}<path d="m13 12-3 5h4l-3 6"/></></SvgIcon> }
 export function SnowflakeIcon(props: Props) { return <SvgIcon {...props}><path d="M12 2v20M3 7l18 10M3 17 21 7M9 3l3 3 3-3M9 21l3-3 3 3M3 10l4-1-1-4m12 0-1 4 4 1M3 14l4 1-1 4m12 0-1-4 4-1"/></SvgIcon> }

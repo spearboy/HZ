@@ -115,30 +115,31 @@ export default function Album({ coupleId, userId, active, photoVersion, notify, 
 
   return (
     <Box className="screen album-screen">
-      <Box className="screen-heading">
+      <Box className="screen-heading" sx={{ pb: 0.5 }}>
         <Typography component="h1" sx={{ fontSize: { xs: 32, md: 34 }, fontWeight: 700, letterSpacing: '-.04em', lineHeight: 1.15 }}>{tr('앨범')}</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{isEnglish() ? 'The moments we saved together' : '함께 보낸 순간을 모아두었어요'}</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>{isEnglish() ? 'Our days, in photographs' : '사진으로 남긴 우리의 날들'}</Typography>
       </Box>
-      {failed && <Card sx={{ p: 2 }}>
-        <Typography variant="body2" color="text.secondary">{isEnglish() ? 'Could not refresh your photos.' : '사진 목록을 불러오지 못했어요.'}</Typography>
-        <Button size="small" onClick={() => load(false)} sx={{ mt: 0.5, px: 0 }}>{isEnglish() ? 'Try again' : '다시 불러오기'}</Button>
+      {failed && <Card role="status" sx={{ p: 2, mb: 3 }}>
+        <Typography variant="body2" sx={{ fontWeight: 650 }}>{isEnglish() ? 'Could not load your photos' : '사진을 불러오지 못했어요'}</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{isEnglish() ? 'Check your connection and try again.' : '연결 상태를 확인하고 다시 시도해 주세요.'}</Typography>
+        <Button size="small" onClick={() => load(false)} sx={{ mt: 1, px: 0 }}>{isEnglish() ? 'Try again' : '다시 불러오기'}</Button>
       </Card>}
-      {photos?.length === 0 && (
-        <Card sx={{ p: 3, minHeight: 220, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center' }}>
-          <Box sx={{ color: 'primary.main', lineHeight: 0, mb: 2 }}><ImageIcon size={26} /></Box>
-          <Typography sx={{ fontSize: 17, fontWeight: 700 }}>{isEnglish() ? 'Your first moment together' : '우리의 첫 순간을 남겨보세요'}</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.6 }}>{tr('아직 사진이 없어요. 캘린더에서 날짜를 골라 올려 보세요.')}</Typography>
-          <Button onClick={() => openCalendar(ymd(new Date()))} endIcon={<ChevronRightIcon size={16} />} sx={{ mt: 1.5, px: 0 }}>
-            {isEnglish() ? 'Open calendar' : '캘린더로 가기'}
+      {!failed && photos?.length === 0 && (
+        <Card sx={{ px: 3, py: 4, minHeight: 260, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+          <Box sx={{ color: 'text.secondary', lineHeight: 0, mb: 2.5 }}><ImageIcon size={30} /></Box>
+          <Typography component="h2" sx={{ fontSize: 19, fontWeight: 700, letterSpacing: '-.025em' }}>{isEnglish() ? 'No photos yet' : '아직 사진이 없어요'}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1, lineHeight: 1.6, maxWidth: 270 }}>{isEnglish() ? 'Choose a day in the calendar to add a photo.' : '캘린더에서 날짜를 골라 함께한 순간을 남겨보세요.'}</Typography>
+          <Button variant="outlined" onClick={() => openCalendar(ymd(new Date()))} endIcon={<ChevronRightIcon size={16} />} sx={{ mt: 2.5 }}>
+            {isEnglish() ? 'Open calendar' : '캘린더에서 사진 추가'}
           </Button>
         </Card>
       )}
       <Stack spacing={3}>
         {[...months].map(([ym, list]) => (
           <Box key={ym}>
-            <Stack direction="row" sx={{ alignItems: 'baseline', gap: 1, mb: 1.25 }}>
-              <Typography component="h2" sx={{ fontSize: 17, fontWeight: 700, flex: 1 }}>{new Date(`${ym}-01T00:00`).toLocaleDateString(locale(), { year: 'numeric', month: 'long' })}</Typography>
-              <Typography variant="caption" color="text.secondary">{list.length}{isEnglish() ? ' photos' : '장'}</Typography>
+            <Stack direction="row" sx={{ alignItems: 'baseline', gap: 1, mb: 1.5 }}>
+              <Typography component="h2" sx={{ fontSize: 19, fontWeight: 700, letterSpacing: '-.025em', flex: 1 }}>{new Date(`${ym}-01T00:00`).toLocaleDateString(locale(), { year: 'numeric', month: 'long' })}</Typography>
+              <Typography variant="body2" color="text.secondary">{list.length}{isEnglish() ? ' photos shown' : '장 표시 중'}</Typography>
             </Stack>
             <PhotoGrid photos={list} userId={userId} onChanged={() => load(false)} onError={notify} />
           </Box>
