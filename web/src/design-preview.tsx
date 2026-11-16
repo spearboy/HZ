@@ -17,7 +17,7 @@ if (import.meta.env.DEV) {
     let data: unknown = []
     if (url.includes('/profiles')) data = profiles
     else if (url.includes('/events')) data = params.has('empty') ? [] : url.includes('dday=eq.true') ? events.filter(event => event.dday) : events
-    else if (url.includes('/couples')) data = { started_on: '2025-04-12', cover_path: null, cover_zoom: 1, cover_x: 50, cover_y: 50 }
+    else if (url.includes('/couples')) data = { started_on: params.has('unstarted') ? null : '2025-04-12', cover_path: null, cover_zoom: 1, cover_x: 50, cover_y: 50 }
     return new Response(JSON.stringify(data), { status: 200, headers: { 'Content-Type': 'application/json' } })
   }
   const { supabase } = await import('./supabase')

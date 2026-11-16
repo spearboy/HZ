@@ -22,7 +22,7 @@ export default function App() {
 }
 
 const Loading = () => (
-  <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center' }}><CircularProgress /></Box>
+  <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center' }}><CircularProgress aria-label={isEnglish() ? 'Loading' : '불러오는 중'} /></Box>
 )
 
 // 로그인/연결 화면 공통 틀: 가운데 카드 + 로고
@@ -30,13 +30,13 @@ function Centered({ title, sub, children }: { title: string; sub: string; childr
   return (
     <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', p: 2,
       bgcolor: 'background.default' }}>
-      <Stack spacing={3} sx={{ width: '100%', maxWidth: 400 }}>
+      <Stack spacing={3.5} sx={{ width: '100%', maxWidth: 400 }}>
         <Stack sx={{ alignItems: 'center' }} spacing={1}>
-          <Box component="img" src="/icon-192.png" alt="MORO" sx={{ width: 72, height: 72, borderRadius: '22px', boxShadow: 4 }} />
-          <Typography variant="h5" sx={{ letterSpacing: title === 'MORO' ? '.28em' : 0, pl: title === 'MORO' ? '.28em' : 0 }}>{title}</Typography>
+          <Box component="img" src="/icon-192.png" alt="" sx={{ width: 64, height: 64, borderRadius: '18px', mb: 1 }} />
+          <Typography component="h1" sx={{ fontSize: 28, fontWeight: 700, letterSpacing: '-.035em' }}>{title}</Typography>
           <Typography color="text.secondary" sx={{ textAlign: 'center' }}>{sub}</Typography>
         </Stack>
-        <Card><CardContent><Stack spacing={2}>{children}</Stack></CardContent></Card>
+        <Card><CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}><Stack spacing={2}>{children}</Stack></CardContent></Card>
       </Stack>
     </Box>
   )

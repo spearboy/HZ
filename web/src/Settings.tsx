@@ -20,6 +20,10 @@ const ImageFitDialog = lazy(() => import('./ImageFit'))
 const ImportIcs = lazy(() => import('./ImportIcs'))
 
 const PALETTE = ['#ff6b8b', '#ff7a59', '#f59f00', '#40c057', '#12b886', '#15aabf', '#5b8def', '#7950f2', '#be4bdb', '#868e96']
+const COLOR_NAMES = [
+  ['분홍', 'Pink'], ['코랄', 'Coral'], ['주황', 'Orange'], ['초록', 'Green'], ['민트', 'Mint'],
+  ['청록', 'Teal'], ['파랑', 'Blue'], ['보라', 'Purple'], ['자주', 'Magenta'], ['회색', 'Gray'],
+] as const
 
 export default function Settings({ coupleId, userId, active, coupleVersion, notify, profiles, colorOf, reloadProfiles, onLeft }: TabProps) {
   const { palette } = useTheme()
@@ -141,10 +145,10 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
           <Box sx={{ px: 2, pb: 2.5 }}>
             <Typography variant="body2" sx={{ fontWeight: 700, mb: 1.5 }}>{tr('내 일정 색상')}</Typography>
             <Box role="radiogroup" aria-label={tr('내 일정 색상')} sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {PALETTE.map((c) => {
+              {PALETTE.map((c, i) => {
                 const on = c === myColor
-                return <ButtonBase key={c} role="radio" disabled={savingColor} aria-checked={on} aria-label={isEnglish() ? 'Color ' + c : '색상 ' + c} onClick={() => pickColor(c)}
-                  sx={{ width: 40, height: 40, borderRadius: '50%', color: palette.getContrastText(c),
+                return <ButtonBase key={c} role="radio" disabled={savingColor} aria-checked={on} aria-label={isEnglish() ? COLOR_NAMES[i][1] : COLOR_NAMES[i][0]} onClick={() => pickColor(c)}
+                  sx={{ width: 44, height: 44, borderRadius: '50%', color: palette.getContrastText(c),
                     '&:focus-visible': { outline: '2px solid var(--mui-palette-primary-main)', outlineOffset: 1 } }}>
                   <Box sx={{ width: 30, height: 30, borderRadius: '50%', bgcolor: c, display: 'grid', placeItems: 'center',
                     boxShadow: on ? '0 0 0 2px var(--mui-palette-background-paper), 0 0 0 4px ' + c : 'none' }}>

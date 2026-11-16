@@ -1,24 +1,27 @@
 html { touch-action: pan-x pan-y; }
-:root { --moro-feature: #ffffff; }
-[data-dark] { --moro-feature: #1c1c1e; }
+:root { --moro-feature: #efecf6; }
+[data-dark] { --moro-feature: #272332; }
 body { -webkit-font-smoothing: antialiased; }
 .app-shell { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
 .app-content { max-width: 640px; margin-inline: auto; }
 .app-content[hidden] { display: none; }
-.screen { padding: 24px 20px 32px; }
+.screen { padding: 28px 20px 36px; }
 .screen-heading { margin-bottom: 24px; }
 .home-screen { display: grid; grid-template-columns: minmax(0, 1fr); gap: 26px; }
 .home-screen > .screen-heading { margin-bottom: 0; }
 .home-screen > * { min-width: 0; }
-.couple-card { border-radius: 16px !important; }
+.couple-card { border-radius: 20px !important; }
 .milestones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; border-top: 1px solid; margin-top: 24px; padding-top: 16px; }
+.home-brand { display: flex; align-items: center; gap: 8px; color: var(--mui-palette-text-secondary); font-size: 12px; font-weight: 650; letter-spacing: .03em; margin-bottom: 14px; }
+.home-brand img { width: 20px; height: 20px; border-radius: 6px; }
+.home-screen section > .MuiStack-root:first-child h2, .upcoming-section > h2 { letter-spacing: -.025em; }
 .navigation-inner { max-width: 1120px; margin: auto; }
 .desktop-brand { display: none; }
 .MuiBottomNavigationAction-label { white-space: nowrap; }
 .calendar-layout { display: grid; gap: 28px; align-items: start; }
 .settings-section { margin-bottom: 28px; }
 .album-screen .MuiImageList-root { gap: 3px !important; }
-.album-screen .MuiImageListItem-root { border-radius: 3px !important; }
+.album-screen .MuiImageListItem-root { border-radius: 4px !important; }
 @media (min-width: 1000px) {
   /* 1080px content = 624px main + 32px gutter + 424px companion. */
   .app-shell { padding-top: 76px; padding-bottom: 32px; }
@@ -27,6 +30,7 @@ body { -webkit-font-smoothing: antialiased; }
   .app-navigation { top: 0; bottom: auto !important; border-top: 0 !important; border-bottom: 1px solid var(--mui-palette-divider); padding-bottom: 0 !important; }
   .navigation-inner { display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
   .desktop-brand { display: flex; align-items: center; gap: 12px; }
+  .home-brand { display: none; }
   .desktop-brand img { border-radius: 10px; }
   .desktop-brand strong { display: block; font-size: 18px; letter-spacing: .04em; }
   .desktop-brand span { display: block; color: var(--mui-palette-text-secondary); font-size: 12px; }

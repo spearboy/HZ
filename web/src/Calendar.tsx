@@ -203,8 +203,8 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
             const hol = tr(holidayName(k) ?? '')
             return (
               <ButtonBase key={k} onClick={() => setSelected(k)} aria-pressed={isSel}
-                aria-label={`${d.toLocaleDateString(locale(), { month: 'long', day: 'numeric' })}${hol ? `, ${hol}` : ''}${list.length ? isEnglish() ? `, ${list.length} events` : `, 일정 ${list.length}개` : ''}${photoDays.has(k) ? isEnglish() ? ', has photos' : ', 사진 있음' : ''}`}
-                sx={{ flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', gap: '2px', py: 0.5, minHeight: { xs: 66, md: 78 }, borderRadius: '4px',
+                aria-label={`${d.toLocaleDateString(locale(), { year: 'numeric', month: 'long', day: 'numeric' })}${isToday ? isEnglish() ? ', today' : ', 오늘' : ''}${hol ? `, ${hol}` : ''}${list.length ? isEnglish() ? `, ${list.length} events` : `, 일정 ${list.length}개` : ''}${photoDays.has(k) ? isEnglish() ? ', has photos' : ', 사진 있음' : ''}`}
+                sx={{ flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', gap: '2px', py: 0.5, minHeight: { xs: 56, sm: 66, md: 78 }, borderRadius: '4px',
                   opacity: d.getMonth() !== month.getMonth() ? 0.6 : 1,
                   bgcolor: 'transparent', outlineOffset: -1,
                   transition: 'background-color 180ms ease, transform 240ms cubic-bezier(.2,.8,.2,1), outline-color 180ms ease',
@@ -227,12 +227,12 @@ function Calendar({ coupleId, userId, active, eventVersion, photoVersion, notify
                   const cont = k !== first && dow !== 0
                   const more = k !== last && dow !== 6
                   return (
-                    <Box key={ev.id} sx={{ height: 17, lineHeight: '17px', fontSize: 11, fontWeight: 600, px: 0.5, overflow: 'hidden', whiteSpace: 'nowrap',
+                    <Box key={ev.id} sx={{ height: { xs: 4, sm: 17 }, lineHeight: '17px', fontSize: 11, fontWeight: 600, px: 0.5, overflow: 'hidden', whiteSpace: 'nowrap',
                       textAlign: 'left', bgcolor: tint(color(ev)), color: ink(color(ev)),
                       borderLeft: cont ? 0 : `3px solid ${color(ev)}`,
                       ml: cont ? 0 : '2px', mr: more ? 0 : '2px',
                       borderRadius: `${cont ? 0 : 4}px ${more ? 0 : 4}px ${more ? 0 : 4}px ${cont ? 0 : 4}px` }}>
-                      {cont ? ' ' : ev.title}
+                      <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>{cont ? ' ' : ev.title}</Box>
                     </Box>
                   )
                 })}

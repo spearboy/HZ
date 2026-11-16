@@ -132,13 +132,14 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
     <Box className="screen home-screen">
       <Stack className="screen-heading" direction="row" sx={{ alignItems: 'center', gap: 1 }}>
         <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box className="home-brand"><img src="/icon-192.png" alt="" />MORO</Box>
           <Typography component="h1" sx={{ fontSize: { xs: 32, md: 34 }, fontWeight: 700, letterSpacing: '-.04em', lineHeight: 1.15 }}>{isEnglish() ? 'Our everyday' : '우리의 하루'}</Typography>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 0.5 }}>
             <Typography variant="body2" color="text.secondary">{now.toLocaleDateString(locale(), { month: 'long', day: 'numeric', weekday: 'short' })}</Typography>
             <WeatherCard w={weather} compact />
           </Stack>
         </Box>
-        <Button startIcon={<HeartIcon size={18} />} onClick={() => poke(notify)} sx={{ flexShrink: 0, px: 1 }}>{tr('콕 찌르기')}</Button>
+        <Button startIcon={<HeartIcon size={18} />} onClick={() => poke(notify)} sx={{ flexShrink: 0, px: 1, alignSelf: 'flex-end' }}>{tr('콕 찌르기')}</Button>
       </Stack>
 
       {/* 커플 디데이 */}
@@ -154,7 +155,7 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
         {active && pageVisible && fx && weather && <WeatherFx code={weather.code} />}
         {active && pageVisible && glass !== 'none' && <GlassFx kind={glass} seed={+today.replaceAll('-', '')} />}
         <Box sx={{ position: 'relative', p: { xs: 3, md: 3.5 }, pointerEvents: 'none', userSelect: 'none' }}>
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 3 }}>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 3.5 }}>
           {[me, partner].map((p, i) => p && (
             <Stack key={p.id} direction="row" spacing={0.75} sx={{ alignItems: 'center', minWidth: 0 }}>
               {i === 1 && <Box sx={{ mr: 0.25, lineHeight: 0 }}><HeartIcon size={16} /></Box>}
@@ -169,7 +170,8 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
         {together ? (
           <>
             <Typography variant="body2" sx={{ opacity: 0.85 }}>{tr("함께한 지")}</Typography>
-            <Typography sx={{ fontSize: 42, fontWeight: 650, fontVariantNumeric: 'tabular-nums', color: 'inherit', letterSpacing: '-0.04em', lineHeight: 1.15 }}>{together.n.toLocaleString(locale())}<Typography component="span" sx={{ fontSize: 20, fontWeight: 600, ml: 0.5 }}>{isEnglish() ? 'days' : '일'}</Typography></Typography>
+            <Typography sx={{ fontSize: { xs: 46, md: 52 }, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'inherit', letterSpacing: '-0.04em', lineHeight: 1.15 }}>{together.n.toLocaleString(locale())}<Typography component="span" sx={{ fontSize: 18, fontWeight: 600, ml: 0.75 }}>{isEnglish() ? 'days' : '일'}</Typography></Typography>
+            <Typography variant="body2" sx={{ opacity: 0.75, mt: 0.5 }}>{new Date(`${startedOn}T00:00`).toLocaleDateString(locale(), { year: 'numeric', month: 'long', day: 'numeric' })}{isEnglish() ? ' · our first day' : '부터'}</Typography>
             <Box className="milestones" sx={{ borderColor: cover.url ? '#ffffff40' : 'divider' }}>
               <Box><Typography variant="caption" sx={{ opacity: 0.8 }}>{together.hundred.n}{isEnglish() ? ' days together' : '일 되는 날'}</Typography><Typography sx={{ fontSize: 20, fontWeight: 500 }}>{dLabel(together.hundred.left)}</Typography></Box>
               <Box><Typography variant="caption" sx={{ opacity: 0.8 }}>{together.anniversary.years}{isEnglish() ? '-year anniversary' : '주년 기념일'}</Typography><Typography sx={{ fontSize: 20, fontWeight: 500 }}>{dLabel(together.anniversary.left)}</Typography></Box>
@@ -179,7 +181,7 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
         ) : startedOn === null && (
           <>
             <Typography sx={{ fontWeight: 700, mb: 1 }}>{tr("사귄 날을 알려 주세요")}</Typography>
-            <Button variant="contained" onClick={() => setEditing(true)} sx={{ bgcolor: '#fff', color: 'primary.main', pointerEvents: 'auto' }}>{tr("사귄 날 설정")}</Button>
+            <Button variant="contained" onClick={() => setEditing(true)} sx={{ pointerEvents: 'auto' }}>{tr("사귄 날 설정")}</Button>
           </>
         )}
         </Box>
