@@ -22,6 +22,7 @@ import { SummarySkeleton } from './Skeletons'
 import type { TabProps } from './homeTypes'
 import { poke } from './poke'
 import { usePageVisible } from './usePageVisible'
+import CelebrationPreview from './CelebrationPreview'
 
 const ImageFitDialog = lazy(() => import('./ImageFit'))
 
@@ -172,6 +173,7 @@ export default function Summary({ coupleId, userId, active, eventVersion, couple
             <Typography variant="body2" sx={{ opacity: 0.78 }}>{tr("함께한 지")}</Typography>
             <Typography sx={{ fontSize: { xs: 42, md: 48 }, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'inherit', letterSpacing: '-0.04em', lineHeight: 1.15 }}>{together.n.toLocaleString(locale())}<Typography component="span" sx={{ fontSize: 18, fontWeight: 600, ml: 0.75 }}>{isEnglish() ? 'days' : '일'}</Typography></Typography>
             <Typography variant="body2" sx={{ opacity: 0.72, mt: 0.5 }}>{new Date(`${startedOn}T00:00`).toLocaleDateString(locale(), { year: 'numeric', month: 'long', day: 'numeric' })}{isEnglish() ? ' · our first day' : '부터'}</Typography>
+            {active && together.n === 200 && startedOn && <CelebrationPreview key={`${coupleId}:${userId}:${startedOn}`} coupleId={coupleId} userId={userId} startedOn={startedOn} />}
             <Box className="milestones" sx={{ borderColor: cover.url ? '#ffffff40' : 'divider' }}>
               <Box><Typography variant="caption" sx={{ opacity: 0.8 }}>{together.hundred.n}{isEnglish() ? ' days together' : '일 되는 날'}</Typography><Typography sx={{ fontSize: 20, fontWeight: 500 }}>{dLabel(together.hundred.left)}</Typography></Box>
               <Box><Typography variant="caption" sx={{ opacity: 0.8 }}>{together.anniversary.years}{isEnglish() ? '-year anniversary' : '주년 기념일'}</Typography><Typography sx={{ fontSize: 20, fontWeight: 500 }}>{dLabel(together.anniversary.left)}</Typography></Box>

@@ -6,5 +6,6 @@ import Home from './Home'
 
 export default function DesignPreview() {
  const [language, updateLanguage] = useState<'ko' | 'en'>(() => new URLSearchParams(location.search).get('language') === 'en' ? 'en' : 'ko')
- return <LanguageChoice.Provider value={{ language, setLanguage: next => { setCurrentLanguage(next); updateLanguage(next) } }}><ThemeProvider theme={theme} defaultMode="light"><CssBaseline/><Home coupleId="preview" userId="preview-0" onLeft={() => {}}/></ThemeProvider></LanguageChoice.Provider>
+ const previewId = new URLSearchParams(location.search).get('preview-id') || 'preview'
+ return <LanguageChoice.Provider value={{ language, setLanguage: next => { setCurrentLanguage(next); updateLanguage(next) } }}><ThemeProvider theme={theme} defaultMode="light"><CssBaseline/><Home coupleId={previewId} userId="preview-0" onLeft={() => {}}/></ThemeProvider></LanguageChoice.Provider>
 }
