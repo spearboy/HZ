@@ -18,6 +18,7 @@ import { isEnglish, useLanguage } from './language'
 
 const ImageFitDialog = lazy(() => import('./ImageFit'))
 const ImportIcs = lazy(() => import('./ImportIcs'))
+const Support = lazy(() => import('./Support'))
 
 const PALETTE = ['#ff6b8b', '#ff7a59', '#f59f00', '#40c057', '#12b886', '#15aabf', '#5b8def', '#7950f2', '#be4bdb', '#868e96']
 const COLOR_NAMES = [
@@ -34,6 +35,7 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
   const [leaving, setLeaving] = useState(false)
   const [push, setPush] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [supportOpen, setSupportOpen] = useState(false)
   const [picking, setPicking] = useState<'avatar' | 'cover' | null>(null)
   const fx = useWeatherFx()
   const [cover, setCover] = useState<{ url: string | null; path: string | null; fit: Fit }>({ url: null, path: null, fit: DEFAULT_FIT })
@@ -194,6 +196,13 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
         </Card>
       </SettingsSection>
 
+      <SettingsSection title={isEnglish() ? 'Help' : '도움말'} description={isEnglish() ? 'Contact us and check your replies.' : '문의와 답변을 확인해요.'}>
+        <Card><List disablePadding><ListItemButton onClick={() => setSupportOpen(true)} sx={{ px: 2, py: 1.5 }}>
+          <ListItemText primary={isEnglish() ? 'Contact support' : '문의하기'} secondary={isEnglish() ? 'Send a message or check your replies' : '문의 보내기 및 답변 확인'} />
+          <Box sx={{ color: 'text.disabled', lineHeight: 0, ml: 1 }}><ChevronRightIcon size={18} /></Box>
+        </ListItemButton></List></Card>
+      </SettingsSection>
+
       <SettingsSection title={isEnglish() ? 'Calendar & account' : '캘린더 및 계정'} description={isEnglish() ? 'Bring existing plans into MORO and manage your connection.' : '기존 일정을 가져오고 계정 연결을 관리해요.'}>
         <Card>
           <List disablePadding sx={{ '& .MuiListItemIcon-root': { minWidth: 38, color: 'text.secondary' },
@@ -217,6 +226,7 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
         </Card>
       </SettingsSection>
 
+      {supportOpen && <Suspense fallback={null}><Support userId={userId} onClose={() => setSupportOpen(false)} /></Suspense>}
       {picking === 'avatar' && me && (<Suspense fallback={null}>
         <ImageFitDialog title={tr("내 프로필 사진")} round ratio={1} max={400} prefix={`${coupleId}/avatar`}
           url={me.avatarUrl ?? null} path={me.avatar_path} fit={avatarFit(me)}

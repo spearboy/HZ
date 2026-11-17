@@ -6,9 +6,11 @@ import { auth, koError, supabase } from './supabase'
 import { clearSignedCache } from './photoStorage'
 
 const Home = lazy(() => import('./Home'))
+const SupportAdmin = lazy(() => import('./SupportAdmin'))
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
+  const [adminMode, setAdminMode] = useState(() => location.hash === '#admin')
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
@@ -16,8 +18,15 @@ export default function App() {
     return () => data.subscription.unsubscribe()
   }, [])
 
+  useEffect(() => {
+    const onHashChange = () => setAdminMode(location.hash === '#admin')
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+
   if (session === undefined) return <Loading />
-  if (!session) return <Login />
+  if (!session) return <Login adminMode={adminMode} />
+  if (adminMode) return <Suspense fallback={<Loading />}><SupportAdmin userId={session.user.id} /></Suspense>
   return <Paired userId={session.user.id} />
 }
 
@@ -44,7 +53,7 @@ function Centered({ title, sub, children }: { title: string; sub: string; childr
   )
 }
 
-function Login() {
+function Login({ adminMode }: { adminMode: boolean }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [msg, setMsg] = useState('')
@@ -57,7 +66,7 @@ function Login() {
   }
 
   return (
-    <Centered title="MORO" sub={tr("둘만의 일정과 사진을 함께 모아요")}>
+    <Centered title={adminMode ? (isEnglish() ? 'Support sign in' : '관리자 로그인') : 'MORO'} sub={adminMode ? (isEnglish() ? 'Sign in with your support administrator account.' : '문의 관리자 계정으로 로그인해 주세요.') : tr("둘만의 일정과 사진을 함께 모아요")}>
       <Button size="large" onClick={() => auth.oauth('kakao')}
         sx={{ bgcolor: '#fee500', color: '#191919', minHeight: 50, '&:hover': { bgcolor: '#f5dc00' } }}>
         {tr("카카오로 시작하기")}
@@ -71,9 +80,10 @@ function Login() {
         <TextField type="password" label={tr("비밀번호 (6자 이상)")} autoComplete="current-password" required size="small" slotProps={{ htmlInput: { minLength: 6 } }}
           value={password} onChange={(e) => setPassword(e.target.value)} />
         <Button type="submit" variant="contained" size="large">{tr("로그인")}</Button>
-        <Button onClick={(e) => submit(e, 'up')}>{tr("이메일로 가입")}</Button>
+        {!adminMode && <Button onClick={(e) => submit(e, 'up')}>{tr("이메일로 가입")}</Button>}
       </Stack>
       {msg && <Alert severity="info">{msg}</Alert>}
+      <Button href={adminMode ? location.pathname : '#admin'} size="small">{adminMode ? (isEnglish() ? 'Back to app' : '일반 로그인') : (isEnglish() ? 'Support administrator' : '관리자 로그인')}</Button>
     </Centered>
   )
 }
