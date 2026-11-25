@@ -28,7 +28,7 @@ if (import.meta.env.DEV) {
     let data: unknown = []
     if (url.includes('/rpc/admin_couple_overview')) data = adminCouples
     else if (url.includes('/rpc/admin_couple_activity')) data = Array.from({ length: 14 }, (_, i) => ({ day: date(i - 13).slice(0, 10), events: i % 4 === 0 ? 2 : i % 3 === 0 ? 1 : 0, photos: i % 5 === 0 ? 2 : i % 4 === 0 ? 1 : 0 }))
-    else if (url.includes('/support_admins')) data = params.has('admin-preview') ? [{ user_id: 'preview-0' }] : []
+    else if (url.includes('/support_admins')) data = params.has('admin-preview') || params.has('settings-admin-preview') ? [{ user_id: 'preview-0' }] : []
     else if (url.includes('/support_tickets')) {
       if (method === 'POST' && typeof init?.body === 'string') {
         const row = JSON.parse(init.body) as { user_id: string; subject: string; body: string }

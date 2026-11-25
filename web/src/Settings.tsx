@@ -36,6 +36,7 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
   const [push, setPush] = useState(false)
   const [importing, setImporting] = useState(false)
   const [supportOpen, setSupportOpen] = useState(false)
+  const [adminAccess, setAdminAccess] = useState<{ userId: string; allowed: boolean } | null>(null)
   const [picking, setPicking] = useState<'avatar' | 'cover' | null>(null)
   const fx = useWeatherFx()
   const [cover, setCover] = useState<{ url: string | null; path: string | null; fit: Fit }>({ url: null, path: null, fit: DEFAULT_FIT })
@@ -45,6 +46,15 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
   useEffect(() => {
     pushEnabled().then(setPush)
   }, [])
+
+  useEffect(() => {
+    if (!active) return
+    let current = true
+    void supabase.from('support_admins').select('user_id').eq('user_id', userId).maybeSingle().then(({ data, error }) => {
+      if (current) setAdminAccess({ userId, allowed: !error && data?.user_id === userId })
+    })
+    return () => { current = false }
+  }, [active, userId])
 
   const loadCover = useCallback(async () => {
     const id = ++coverLoadId.current
@@ -202,6 +212,13 @@ export default function Settings({ coupleId, userId, active, coupleVersion, noti
           <Box sx={{ color: 'text.disabled', lineHeight: 0, ml: 1 }}><ChevronRightIcon size={18} /></Box>
         </ListItemButton></List></Card>
       </SettingsSection>
+
+      {adminAccess?.userId === userId && adminAccess.allowed && <SettingsSection title={isEnglish() ? 'Administration' : '관리'} description={isEnglish() ? 'View the operations dashboard.' : '서비스 운영 현황을 확인해요.'}>
+        <Card><List disablePadding><ListItemButton component="a" href="#admin" sx={{ px: 2, py: 1.5 }}>
+          <ListItemText primary={isEnglish() ? 'View dashboard' : '관리자 대시보드 보기'} secondary={isEnglish() ? 'Couples and inquiries' : '커플 현황과 문의 관리'} />
+          <Box sx={{ color: 'text.disabled', lineHeight: 0, ml: 1 }}><ChevronRightIcon size={18} /></Box>
+        </ListItemButton></List></Card>
+      </SettingsSection>}
 
       <SettingsSection title={isEnglish() ? 'Calendar & account' : '캘린더 및 계정'} description={isEnglish() ? 'Bring existing plans into MORO and manage your connection.' : '기존 일정을 가져오고 계정 연결을 관리해요.'}>
         <Card>
