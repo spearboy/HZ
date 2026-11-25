@@ -83,7 +83,7 @@ function Login({ adminMode }: { adminMode: boolean }) {
         {!adminMode && <Button onClick={(e) => submit(e, 'up')}>{tr("이메일로 가입")}</Button>}
       </Stack>
       {msg && <Alert severity="info">{msg}</Alert>}
-      <Button href={adminMode ? location.pathname : '#admin'} size="small">{adminMode ? (isEnglish() ? 'Back to app' : '일반 로그인') : (isEnglish() ? 'Support administrator' : '관리자 로그인')}</Button>
+      {adminMode && <Button href={location.pathname} size="small">{isEnglish() ? 'Back to app' : '일반 로그인'}</Button>}
     </Centered>
   )
 }
